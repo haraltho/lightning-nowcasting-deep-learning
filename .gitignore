@@ -1,0 +1,8 @@
+.DS_Store
+data/
+outputs/
+src/local_variables.py
+__pycache__/
+*.pyc
+# Jupyter Notebook checkpoints
+.ipynb_checkpoints
