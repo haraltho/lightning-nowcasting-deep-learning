@@ -5,11 +5,13 @@ import utils
 import importlib
 importlib.reload(utils)
 from datetime import timedelta
+import os
     
 storm_periods = None
 grid = None
 lightning_data = None
 time_segments = None
+lightning_grids = None
 
 def process_lightning(time_segments_file, grid_file, lead_time, time_step, time_window, output_dir):
     """
@@ -44,7 +46,7 @@ def process_lightning(time_segments_file, grid_file, lead_time, time_step, time_
     """
 
     # Global variables for ipython
-    global storm_periods, grid, lightning_data, time_segments
+    global storm_periods, grid, lightning_data, time_segments, lightning_grids
 
     # Read storm periods
     storm_periods = utils.parse_storm_periods(time_segments_file)
@@ -61,21 +63,33 @@ def process_lightning(time_segments_file, grid_file, lead_time, time_step, time_
         start_nowcast_time   = start_reference_time + timedelta(minutes=lead_time)
         end_nowcast_time     = end_reference_time   + timedelta(minutes=lead_time+time_window)
 
-        # Fetch lightning data per storm day
-        # lightning_data = utils.call_lightning_api(start_nowcast_time, end_nowcast_time, grid)
+        # Fetch lightning data per storm day from api, or read it from file if it already exists
+        filename = output_dir + "api_data/" + start_reference_time.strftime("%Y-%m-%d") + ".csv"
+        if os.path.exists(filename):
+            print(f"Loading {filename}")
+            lightning_data = pd.read_csv(filename)
+        else:
+            print("Fetching from API.")
+            lightning_data = utils.call_lightning_api(start_nowcast_time, end_nowcast_time, grid)
+            print(filename)
+            lightning_data.to_csv(filename, index=False)
+            print(f"Saved {filename} to disk.")
 
         # Split time period into segments of length "time_step_min"
         time_segments = utils.create_time_segments(start_reference_time, end_reference_time, time_step)
         
         # Split lightning data into time segments and map onto grid
-        lightning_gridded = utils.lightning_to_grid(lightning_data, grid, time_segments, lead_time, time_step)
+        lightning_grids = utils.lightning_to_grid(lightning_data, grid, time_segments, lead_time, time_window)
 
-        break
+        # Save data to disk
+        date_label = start_reference_time.strftime('%Y-%m-%d')
+        utils.save_lightning_targets(lightning_grids, output_dir, date_label, lead_time, time_window, grid)
+
 
 if __name__ == "__main__":
     storms_filename = "../data/storm_periods.csv"
     grid_filename = "../data/radar_hurum_grid_10x10_8km_spacing.npz"
-    output_dir = "../data/processed_data/"
+    output_dir = "../data/processed_data/lightning/"
 
     process_lightning(time_segments_file=storms_filename, 
                       grid_file=grid_filename,

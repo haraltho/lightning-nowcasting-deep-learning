@@ -3,8 +3,9 @@ import global_variables as global_vars
 import local_variables as local_vars
 import requests
 import numpy as np
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, time, date
 import io
+import h5py
 
 def parse_storm_periods(filename):
     storm_periods = pd.read_csv(filename, comment="#")
@@ -100,8 +101,91 @@ def create_time_segments(start_of_storm, end_of_storm, time_window):
 
 
 
-def lightning_to_grid(lightning_data, grid, time_segments, lead_time, time_step):
-    pass
+def lightning_to_grid(lightning_data, grid, time_segments, lead_time, time_window):
+    lightning_data['datetime'] = pd.to_datetime(lightning_data[['year', 'month', 'day', 'hour', 'minute', 'second']])
+
+    """
+    Convert lightning strikes to gridded counts for multiple time segments.
+   
+    For each time segment, counts lightning strikes occurring within a future 
+    time window and bins them onto a spatial grid by type (cloud-to-ground 
+    and intracloud).
+   
+    Parameters
+    ----------
+    lightning_data : pandas.DataFrame
+        Lightning data with columns: year, month, day, hour, minute, second, lat, lon, cloud, etc.
+    grid : dict
+        Grid definition with keys: x_centers_m, y_centers_m, grid_lats, grid_lons, etc.
+    time_segments : list of datetime objects
+        Reference times for which to create lightning targets
+    lead_time : int
+        Minutes ahead to start counting lightning (e.g., 30)
+    time_window : int
+        Duration in minutes to count lightning (e.g., 10)
+       
+    Returns
+    -------
+    dict
+        Lightning grids keyed by timestamp ('08h00', '08h10', etc.) with 
+        'cloud_to_ground', 'intracloud', and 'total' count arrays
+    """
+
+    # Load grid parameters
+    n_x = len(grid["x_centers_m"])
+    n_y = len(grid["y_centers_m"])
+    latitudes  = grid["grid_lats"]
+    longitudes = grid["grid_lons"]
+
+    lightning_grids = {}
+
+    for reference_time in time_segments:
+
+        nowcast_start = reference_time + timedelta(minutes=lead_time)
+        nowcast_end   = nowcast_start  + timedelta(minutes=time_window)
+
+        # Filter lighting data for time window
+        mask = (lightning_data['datetime'] >= nowcast_start) & (lightning_data['datetime'] < nowcast_end)
+        lightning_filtered = lightning_data[mask]
+
+        # Place lightnings onto grid
+        cg_grid = np.zeros((n_y, n_x)) # Cloud-to-ground strikes
+        ic_grid = np.zeros((n_y, n_x)) # Intra-cloud strikes
+
+        for _, strike in lightning_filtered.iterrows():
+            lat_idx = np.digitize(strike["lat"], latitudes)  - 1
+            lon_idx = np.digitize(strike["lon"], longitudes) - 1
+            if 0 <= lat_idx < n_y and 0 <= lon_idx < n_x:
+                if strike["cloud"]==0:
+                    cg_grid[lat_idx, lon_idx] += 1
+                else:
+                    ic_grid[lat_idx, lon_idx] += 1
+
+        time_stamp = reference_time.strftime("%Hh%M")
+        lightning_grids[time_stamp] = {
+            'cloud_to_ground': cg_grid,
+            'intracloud': ic_grid,
+            'total': ic_grid + cg_grid,
+        }
+
+    return lightning_grids
+
+
+def save_lightning_targets(lightning_grids, output_dir, label, lead_time, time_window, grid):
+    filename = f"{output_dir}targets_{label}.h5"
+
+    with h5py.File(filename, "w") as f:
+        for timestamp, grids in lightning_grids.items():
+            group = f.create_group(f"lightning_{lead_time}min_leadtime/{timestamp}")
+            group.create_dataset('cloud_to_ground', data=grids['cloud_to_ground'])
+            group.create_dataset('intracloud', data=grids['intracloud'])
+            group.create_dataset('total', data=grids['total'])
+
+            f.attrs['lead_time'] = lead_time
+            f.attrs['time_window'] = time_window
+            f.attrs['grid_spacing_m'] = grid['cell_size_m']
+            f.attrs['radar_lat'] = grid['radar_lat']
+            f.attrs['radar_lon'] = grid['radar_lon']
     
 
 
