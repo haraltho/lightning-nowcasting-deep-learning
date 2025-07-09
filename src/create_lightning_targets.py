@@ -7,6 +7,8 @@ importlib.reload(utils)
 from datetime import timedelta
 import os
     
+import lightning_utils
+
 storm_periods = None
 grid = None
 lightning_data = None
@@ -70,7 +72,7 @@ def process_lightning(time_segments_file, grid_file, lead_time, time_step, time_
             lightning_data = pd.read_csv(filename)
         else:
             print("Fetching from API.")
-            lightning_data = utils.call_lightning_api(start_nowcast_time, end_nowcast_time, grid)
+            lightning_data = lightning_utils.call_lightning_api(start_nowcast_time, end_nowcast_time, grid)
             print(filename)
             lightning_data.to_csv(filename, index=False)
             print(f"Saved {filename} to disk.")
@@ -79,11 +81,11 @@ def process_lightning(time_segments_file, grid_file, lead_time, time_step, time_
         time_segments = utils.create_time_segments(start_reference_time, end_reference_time, time_step)
         
         # Split lightning data into time segments and map onto grid
-        lightning_grids = utils.lightning_to_grid(lightning_data, grid, time_segments, lead_time, time_window)
+        lightning_grids = lightning_utils.lightning_to_grid(lightning_data, grid, time_segments, lead_time, time_window)
 
         # Save data to disk
         date_label = start_reference_time.strftime('%Y-%m-%d')
-        utils.save_lightning_targets(lightning_grids, output_dir, date_label, lead_time, time_window, grid)
+        lightning_utils.save_lightning_targets(lightning_grids, output_dir, date_label, lead_time, time_window, grid)
 
 
 if __name__ == "__main__":
