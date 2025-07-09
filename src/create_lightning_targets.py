@@ -18,7 +18,7 @@ lightning_data = None
 time_segments = None
 lightning_grids = None
 
-def process_lightning(time_segments_file, lead_time, time_step, time_window, output_dir):
+def process_lightning(time_segments_file, grid, lead_time, time_step, time_window, output_dir):
     """
     Load lightning data for all time segments and save as daily target file.
     
@@ -51,14 +51,10 @@ def process_lightning(time_segments_file, lead_time, time_step, time_window, out
     """
 
     # Global variables for ipython
-    global storm_periods, grid, lightning_data, time_segments, lightning_grids
+    global storm_periods, lightning_data, time_segments, lightning_grids
 
     # Read storm periods
     storm_periods = utils.parse_storm_periods(time_segments_file)
-
-    # Create spatial grid
-    radar = RADARS["hurum"]
-    grid = utils.create_radar_grid(radar["lat"], radar["lon"])
 
     # Loop over all storms
     for _, time in storm_periods.iterrows():
@@ -81,7 +77,7 @@ def process_lightning(time_segments_file, lead_time, time_step, time_window, out
             lightning_data.to_csv(filename, index=False)
             print(f"Saved {filename} to disk.")
 
-        # Split time period into segments of length "time_step_min"
+        # Split time period into segments of length "time_step"
         time_segments = utils.create_time_segments(start_reference_time, end_reference_time, time_step)
         
         # Split lightning data into time segments and map onto grid
@@ -96,7 +92,12 @@ if __name__ == "__main__":
     storms_filename = "../data/storm_periods.csv"
     output_dir = "../data/processed_data/lightning/"
 
+    # Compute the grid around the radar
+    radar = RADARS["hurum"]
+    grid = utils.create_radar_grid(radar["lat"], radar["lon"])
+
     process_lightning(time_segments_file=storms_filename, 
+                      grid=grid,
                       lead_time=30,
                       time_step=10,
                       time_window=10,
