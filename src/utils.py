@@ -172,6 +172,30 @@ def lightning_to_grid(lightning_data, grid, time_segments, lead_time, time_windo
 
 
 def save_lightning_targets(lightning_grids, output_dir, label, lead_time, time_window, grid):
+    """
+    Save lightning target grids to HDF5 file.
+   
+    Parameters
+    ----------
+    lightning_grids : dict
+        Lightning grids keyed by timestamp with cloud_to_ground, intracloud, total arrays
+    output_dir : str
+        Directory to save the file
+    label : str
+        Date label for filename (e.g., '2024-06-01')
+    lead_time : int
+        Lead time in minutes
+    time_window : int
+        Time window duration in minutes
+    grid : dict
+        Grid metadata for file attributes
+       
+    Returns
+    -------
+    None
+        Saves targets_{label}.h5 file with lightning grids and metadata
+    """
+    
     filename = f"{output_dir}targets_{label}.h5"
 
     with h5py.File(filename, "w") as f:
