@@ -1,13 +1,16 @@
 import numpy as np
 import pandas as pd
 import matplotlib.pyplot as plt
-import utils
 import importlib
-importlib.reload(utils)
 from datetime import timedelta
 import os
     
+import utils
 import lightning_utils
+from global_variables import RADARS
+importlib.reload(utils)
+importlib.reload(lightning_utils)
+
 
 storm_periods = None
 grid = None
@@ -15,7 +18,7 @@ lightning_data = None
 time_segments = None
 lightning_grids = None
 
-def process_lightning(time_segments_file, grid_file, lead_time, time_step, time_window, output_dir):
+def process_lightning(time_segments_file, lead_time, time_step, time_window, output_dir):
     """
     Load lightning data for all time segments and save as daily target file.
     
@@ -53,8 +56,9 @@ def process_lightning(time_segments_file, grid_file, lead_time, time_step, time_
     # Read storm periods
     storm_periods = utils.parse_storm_periods(time_segments_file)
 
-    # Load spatial grid
-    grid = np.load(grid_file)
+    # Create spatial grid
+    radar = RADARS["hurum"]
+    grid = utils.create_radar_grid(radar["lat"], radar["lon"])
 
     # Loop over all storms
     for _, time in storm_periods.iterrows():
@@ -90,11 +94,9 @@ def process_lightning(time_segments_file, grid_file, lead_time, time_step, time_
 
 if __name__ == "__main__":
     storms_filename = "../data/storm_periods.csv"
-    grid_filename = "../data/radar_hurum_grid_10x10_8km_spacing.npz"
     output_dir = "../data/processed_data/lightning/"
 
     process_lightning(time_segments_file=storms_filename, 
-                      grid_file=grid_filename,
                       lead_time=30,
                       time_step=10,
                       time_window=10,
