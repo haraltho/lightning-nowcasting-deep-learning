@@ -1,6 +1,14 @@
 from datetime import timedelta
 import glob
 import xarray as xr
+import numpy as np
+
+PARAM_MAPPING = {
+    "dBZ": "DBZH",
+    "ZDR": "ZDR",
+    "KDP": "KDP",
+    "RhoHV": "RHOHV"
+}
 
 
 def construct_radar_filename(reference_time, radar, parameter, data_dir, time_step):
@@ -52,7 +60,8 @@ def construct_radar_filename(reference_time, radar, parameter, data_dir, time_st
 
 
 def load_all_sweeps(filename):
-    """Load all 12 sweeps for one parameter"""
+    """Load all 12 sweeps from the file."""
+
     sweeps = []
     for i in range(12):
         ds = xr.open_dataset(filename, group=f"sweep_{i}", engine="rainbow")
@@ -60,3 +69,73 @@ def load_all_sweeps(filename):
     return sweeps
 
 
+def spherical_to_cartesian_3D(sweep):
+    """
+    Convert radar field from spherical to 3D Cartesian coordinates.
+    
+    Parameters
+    ----------
+    sweep : xarray.Dataset
+        Single radar sweep containing range, azimuth, and elevation data
+        
+    Returns
+    -------
+    tuple of numpy.ndarray
+        (x, y, z) coordinates in meters from radar location
+        Each array has shape (n_azimuth, n_range)
+        - x: East-West distance (positive = East)
+        - y: North-South distance (positive = North) 
+        - z: Height above radar (positive = up)
+        
+    Notes
+    -----
+    Uses standard meteorological coordinate system where:
+    - Azimuth 0° = North, 90° = East
+    - Elevation angle measured from horizontal
+    """
+
+    range_vals = sweep.range.values
+    azimuth_vals = sweep.azimuth.values
+    elevation_angle = sweep.sweep_fixed_angle.values
+
+    R_mesh, Az_mesh = np.meshgrid(range_vals, azimuth_vals)
+
+    phi = np.pi/2 - np.radians(elevation_angle) # Convert to zenith angle
+    theta = np.radians(Az_mesh)
+
+    x = R_mesh * np.sin(phi) * np.sin(theta)
+    y = R_mesh * np.sin(phi) * np.cos(theta)
+    z = R_mesh * np.cos(phi)
+
+    return x, y, z
+
+
+def convert_all_sweeps_to_cartesian(radar_sweeps, dataset_key):
+    """
+    Convert all radar sweeps to Cartesian coordinates and flatten for interpolation.
+   
+    Parameters
+    ----------
+    radar_sweeps : list of xarray.Dataset
+        List of 12 elevation sweeps
+    dataset_key : str
+        Parameter key in dataset ('DBZH', 'ZDR', 'KDP', 'RHOHV')
+       
+    Returns
+    -------
+    tuple of numpy.ndarray
+        (x, y, z, values) - flattened arrays ready for griddata interpolation
+    """
+    
+    all_x, all_y, all_z, all_payload = [], [], [], []
+
+    for sweep in radar_sweeps:
+        x, y, z = spherical_to_cartesian_3D(sweep)
+        payload = sweep[dataset_key].values
+
+        all_x.extend(x.flatten())
+        all_y.extend(y.flatten())
+        all_z.extend(z.flatten())
+        all_payload.extend(payload.flatten())
+
+    return np.array(all_x), np.array(all_y), np.array(all_z), np.array(all_payload)
