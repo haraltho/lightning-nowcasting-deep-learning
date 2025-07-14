@@ -3,6 +3,7 @@ RADARS = {
         "lat": 59.627083,
         "lon": 10.564472,
         "altitude": 363,
+        "label": "HUR",
     },
 }
 
