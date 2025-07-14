@@ -1,5 +1,6 @@
-from datetime import datetime, timedelta
+from datetime import timedelta
 import glob
+import xarray as xr
 
 
 def construct_radar_filename(reference_time, radar, parameter, data_dir, time_step):
@@ -50,6 +51,12 @@ def construct_radar_filename(reference_time, radar, parameter, data_dir, time_st
     raise FileNotFoundError(f"No radar file found for reference time or up to 30min earlier.")
 
 
-
+def load_all_sweeps(filename):
+    """Load all 12 sweeps for one parameter"""
+    sweeps = []
+    for i in range(12):
+        ds = xr.open_dataset(filename, group=f"sweep_{i}", engine="rainbow")
+        sweeps.append(ds)
+    return sweeps
 
 
