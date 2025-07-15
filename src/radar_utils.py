@@ -3,6 +3,8 @@ import glob
 import xarray as xr
 import numpy as np
 from scipy.interpolate import griddata
+import h5py
+import os
 
 PARAM_MAPPING = {
     "dBZ": "DBZH",
@@ -182,3 +184,39 @@ def interpolate_to_grid(x, y, z, values, grid):
 
     values_interpolated = grid_values.reshape(x_grid.shape)
     return values_interpolated
+
+
+def save_radar_features(daily_features, output_dir, date_label, grid):
+    """
+    Save radar features for a single day to an HDF5 file.
+    
+    Parameters
+    ----------
+    daily_features : dict
+        Dictionary with time segments as keys and feature arrays as values
+    output_dir : str
+        Directory to save the HDF5 file
+    date_label : str
+        Date label for the file name (e.g. '2023-10-01')
+    grid : dict
+        Grid definition for metadata
+    
+    Returns
+    -------
+    None
+    """
+    
+    os.makedirs(output_dir, exist_ok=True)
+    filename = f"{output_dir}features_{date_label}.h5"
+
+    with h5py.File(filename, "w") as f:
+        for timestamp, time_features in daily_features.items():
+            group = f.create_group(timestamp)
+            for param, param_grid in time_features.items():
+                group.create_dataset(param, data=param_grid)
+        
+        f.attrs['grid_spacing_m'] = grid['cell_size_m']
+        f.attrs['radar_lat'] = grid['radar_lat']
+        f.attrs['radar_lon'] = grid['radar_lon']
+
+    print(f"Saved {filename}")

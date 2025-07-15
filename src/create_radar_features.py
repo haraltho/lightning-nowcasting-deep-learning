@@ -14,11 +14,13 @@ time_segments = None
 radar_sweeps = None
 x, y, z = None, None, None
 values, values_interpolated = None, None
+daily_features = None
+time_features = None
 
 def create_radar_features(time_segments_file, grid, time_step, data_dir, output_dir, radar, parameters):
     
     # Global variables for ipython
-    global time_segments, radar_sweeps, x, y, z, values, values_interpolated
+    global time_segments, radar_sweeps, x, y, z, values, values_interpolated, time_features, daily_features
 
     # Read storm periods
     storm_periods = utils.parse_storm_periods(time_segments_file)
@@ -34,6 +36,7 @@ def create_radar_features(time_segments_file, grid, time_step, data_dir, output_
         daily_features = {}
         # Loop over all time segments
         for reference_time in time_segments:
+            print(reference_time)
             time_features = {}
 
             # Compute Cartesian coordinates 
@@ -42,7 +45,6 @@ def create_radar_features(time_segments_file, grid, time_step, data_dir, output_
             x, y, z = radar_utils.convert_all_sweeps_to_cartesian(radar_sweeps)
 
             for param in parameters:
-                print(reference_time, param)
                 # Load data
                 filename = radar_utils.construct_radar_filename(reference_time, radar, param, data_dir, time_step)
                 radar_sweeps = radar_utils.load_all_sweeps(filename)
@@ -51,20 +53,16 @@ def create_radar_features(time_segments_file, grid, time_step, data_dir, output_
 
                 # Interpolate to grid
                 values_interpolated = radar_utils.interpolate_to_grid(x, y, z, values, grid)
+                time_features[param] = values_interpolated
 
-                
+            # Store features for this time segment
+            time_stamp = reference_time.strftime("%Hh%M")
+            daily_features[time_stamp] = time_features
 
-                
-
-                # break
-            # break
-        # break
-    
-
-
-
-
-
+            
+        date_label = start_reference_time.strftime('%Y-%m-%d')
+        radar_utils.save_radar_features(daily_features, output_dir, date_label, grid)
+        
 
 
 if __name__ == "__main__":
