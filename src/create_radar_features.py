@@ -12,11 +12,12 @@ importlib.reload(loc_vars)
 
 time_segments = None
 radar_sweeps = None
+x, y, z = None, None, None
 
 def create_radar_features(time_segments_file, grid, time_step, data_dir, output_dir, radar, parameters):
     
     # Global variables for ipython
-    global time_segments, radar_sweeps
+    global time_segments, radar_sweeps, x, y, z
 
     # Read storm periods
     storm_periods = utils.parse_storm_periods(time_segments_file)
@@ -34,17 +35,21 @@ def create_radar_features(time_segments_file, grid, time_step, data_dir, output_
         for reference_time in time_segments:
             time_features = {}
 
+            # Compute Cartesian coordinates 
+            filename = radar_utils.construct_radar_filename(reference_time, radar, parameters[0], data_dir, time_step)
+            radar_sweeps = radar_utils.load_all_sweeps(filename)
+            x, y, z = radar_utils.convert_all_sweeps_to_cartesian(radar_sweeps)
+
             for param in parameters:
-                
+                print(reference_time, param)
                 # Load data
                 filename = radar_utils.construct_radar_filename(reference_time, radar, param, data_dir, time_step)
                 radar_sweeps = radar_utils.load_all_sweeps(filename)
 
                 # Convert to Cartesian coordinates
                 dataset_key = radar_utils.PARAM_MAPPING[param]
-                x, y, z, values = radar_utils.convert_all_sweeps_to_cartesian(radar_sweeps, dataset_key)
+                values = radar_utils.extract_parameter_values(radar_sweeps, dataset_key)
 
-                
                 
 
                 
@@ -79,3 +84,4 @@ if __name__ == "__main__":
         radar=radar,
         parameters=parameters,
         )
+    

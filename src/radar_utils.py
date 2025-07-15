@@ -110,7 +110,7 @@ def spherical_to_cartesian_3D(sweep):
     return x, y, z
 
 
-def convert_all_sweeps_to_cartesian(radar_sweeps, dataset_key):
+def convert_all_sweeps_to_cartesian(radar_sweeps):
     """
     Convert all radar sweeps to Cartesian coordinates and flatten for interpolation.
    
@@ -118,24 +118,32 @@ def convert_all_sweeps_to_cartesian(radar_sweeps, dataset_key):
     ----------
     radar_sweeps : list of xarray.Dataset
         List of 12 elevation sweeps
-    dataset_key : str
-        Parameter key in dataset ('DBZH', 'ZDR', 'KDP', 'RHOHV')
        
     Returns
     -------
     tuple of numpy.ndarray
-        (x, y, z, values) - flattened arrays ready for griddata interpolation
+        (x, y, z) - flattened arrays ready for griddata interpolation
     """
     
-    all_x, all_y, all_z, all_payload = [], [], [], []
+    all_x, all_y, all_z = [], [], []
 
     for sweep in radar_sweeps:
         x, y, z = spherical_to_cartesian_3D(sweep)
-        payload = sweep[dataset_key].values
 
         all_x.extend(x.flatten())
         all_y.extend(y.flatten())
         all_z.extend(z.flatten())
+
+    return np.array(all_x), np.array(all_y), np.array(all_z)
+
+
+def extract_parameter_values(radar_sweeps, dataset_key):
+    """Extract parameter values from all radar sweeps."""
+    
+    all_payload = []
+
+    for sweep in radar_sweeps:
+        payload = sweep[dataset_key].values
         all_payload.extend(payload.flatten())
 
-    return np.array(all_x), np.array(all_y), np.array(all_z), np.array(all_payload)
+    return np.array(all_payload)
