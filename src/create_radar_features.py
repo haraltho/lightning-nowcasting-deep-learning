@@ -68,7 +68,7 @@ def create_radar_features(time_segments_file, grid, time_step, data_dir, output_
 
 
 if __name__ == "__main__":
-    storms_filename = "../data/storm_periods.csv"
+    storms_filename = "../data/config/storm_periods.csv"
     output_dir = "../data/processed_data/radar/"
     data_dir = loc_vars.RADAR_FILE_DIR
     parameters = ["dBZ", "ZDR", "KDP", "RhoHV"]

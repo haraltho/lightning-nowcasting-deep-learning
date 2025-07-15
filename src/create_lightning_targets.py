@@ -89,7 +89,7 @@ def process_lightning(time_segments_file, grid, lead_time, time_step, time_windo
 
 
 if __name__ == "__main__":
-    storms_filename = "../data/storm_periods.csv"
+    storms_filename = "../data/config/storm_periods.csv"
     output_dir = "../data/processed_data/lightning/"
 
     # Compute the grid around the radar

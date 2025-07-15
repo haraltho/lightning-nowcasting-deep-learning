@@ -3,10 +3,10 @@ import utils
 import local_variables as loc_vars
 
 # Configurations
-storms_filename = "../data/storm_periods.csv"
+storms_filename = "../data/config/storm_periods.csv"
 radar = RADARS["hurum"]
 parameters = ["dBZ", "ZDR", "KDP", "RhoHV"]
-root_dir = "../data/processed_data/asdf/"
+root_dir = "../data/processed_data/"
 lightning_output_dir = root_dir + "lightning/"
 radar_output_dir     = root_dir + "radar/"
 radar_data_dir       = loc_vars.RADAR_FILE_DIR
