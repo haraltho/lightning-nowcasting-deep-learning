@@ -2,6 +2,7 @@ from datetime import timedelta
 import glob
 import xarray as xr
 import numpy as np
+from scipy.interpolate import griddata
 
 PARAM_MAPPING = {
     "dBZ": "DBZH",
@@ -147,3 +148,37 @@ def extract_parameter_values(radar_sweeps, dataset_key):
         all_payload.extend(payload.flatten())
 
     return np.array(all_payload)
+
+
+def interpolate_to_grid(x, y, z, values, grid):
+    """
+    Interpolate radar data onto regular 3D grid using nearest neighbor.
+    
+    Returns
+    -------
+    numpy.ndarray
+        Interpolated values with shape (n_y, n_x, n_z)
+    """
+
+    x_m = grid['x_centers_m']
+    y_m = grid['y_centers_m']
+    z_m = grid['z_levels_m']
+
+    # Create 3D grid
+    x_grid, y_grid, z_grid = np.meshgrid(x_m, y_m, z_m)
+
+    # Only use valid data
+    valid = ~np.isnan(values)
+    x_valid = x[valid]
+    y_valid = y[valid]
+    z_valid = z[valid]
+    values_valid = values[valid]
+
+    # Do the interpolation
+    grid_values = griddata(points=np.column_stack([x_valid, y_valid, z_valid]),
+                           values=values_valid,
+                           xi=np.column_stack([x_grid.flatten(), y_grid.flatten(), z_grid.flatten()]),
+                           method="nearest")
+
+    values_interpolated = grid_values.reshape(x_grid.shape)
+    return values_interpolated

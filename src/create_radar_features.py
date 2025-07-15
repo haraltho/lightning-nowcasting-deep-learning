@@ -13,11 +13,12 @@ importlib.reload(loc_vars)
 time_segments = None
 radar_sweeps = None
 x, y, z = None, None, None
+values, values_interpolated = None, None
 
 def create_radar_features(time_segments_file, grid, time_step, data_dir, output_dir, radar, parameters):
     
     # Global variables for ipython
-    global time_segments, radar_sweeps, x, y, z
+    global time_segments, radar_sweeps, x, y, z, values, values_interpolated
 
     # Read storm periods
     storm_periods = utils.parse_storm_periods(time_segments_file)
@@ -45,18 +46,19 @@ def create_radar_features(time_segments_file, grid, time_step, data_dir, output_
                 # Load data
                 filename = radar_utils.construct_radar_filename(reference_time, radar, param, data_dir, time_step)
                 radar_sweeps = radar_utils.load_all_sweeps(filename)
-
-                # Convert to Cartesian coordinates
                 dataset_key = radar_utils.PARAM_MAPPING[param]
                 values = radar_utils.extract_parameter_values(radar_sweeps, dataset_key)
 
-                
+                # Interpolate to grid
+                values_interpolated = radar_utils.interpolate_to_grid(x, y, z, values, grid)
 
                 
 
-                break
-            break
-        break
+                
+
+                # break
+            # break
+        # break
     
 
 
