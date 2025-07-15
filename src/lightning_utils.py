@@ -7,6 +7,7 @@ import pandas as pd
 import requests
 import h5py
 import io
+import os
 
 
 def call_lightning_api(start_time, end_time, grid):
@@ -164,6 +165,7 @@ def save_lightning_targets(lightning_grids, output_dir, label, lead_time, time_w
         Saves targets_{label}.h5 file with lightning grids and metadata
     """
 
+    os.makedirs(output_dir, exist_ok=True)
     filename = f"{output_dir}targets_{label}.h5"
 
     with h5py.File(filename, "w") as f:
