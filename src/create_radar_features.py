@@ -26,9 +26,11 @@ def create_radar_features(time_segments_file, grid, time_step, data_dir, output_
     storm_periods = utils.parse_storm_periods(time_segments_file)
 
     # Loop over all storms
-    for _, time in storm_periods.iterrows():
+    for i, time in storm_periods.iterrows():
         start_reference_time = time["start_datetime"]
         end_reference_time = time["end_datetime"]
+
+        print(f"\nProcessing storm day: {start_reference_time.date()}  {i+1}/{len(storm_periods)}")
 
         # Split time period into segments of length "time_step"
         time_segments = utils.create_time_segments(start_reference_time, end_reference_time, time_step)
@@ -36,7 +38,7 @@ def create_radar_features(time_segments_file, grid, time_step, data_dir, output_
         daily_features = {}
         # Loop over all time segments
         for reference_time in time_segments:
-            print(reference_time)
+            print(reference_time.strftime('%H:%M'))
             time_features = {}
 
             # Compute Cartesian coordinates 

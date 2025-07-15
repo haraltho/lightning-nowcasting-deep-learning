@@ -180,3 +180,5 @@ def save_lightning_targets(lightning_grids, output_dir, label, lead_time, time_w
             f.attrs['grid_spacing_m'] = grid['cell_size_m']
             f.attrs['radar_lat'] = grid['radar_lat']
             f.attrs['radar_lon'] = grid['radar_lon']
+
+    print(f"Saved {filename}")

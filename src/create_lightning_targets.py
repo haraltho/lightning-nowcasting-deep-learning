@@ -66,6 +66,7 @@ def process_lightning(time_segments_file, grid, lead_time, time_step, time_windo
         end_nowcast_time     = end_reference_time   + timedelta(minutes=lead_time+time_window)
 
         # Fetch lightning data per storm day from api, or read it from file if it already exists
+        os.makedirs(output_dir + "api_data/", exist_ok=True)
         filename = output_dir + "api_data/" + start_reference_time.strftime("%Y-%m-%d") + ".csv"
         if os.path.exists(filename):
             print(f"Loading {filename}")
@@ -73,7 +74,6 @@ def process_lightning(time_segments_file, grid, lead_time, time_step, time_windo
         else:
             print("Fetching from API.")
             lightning_data = lightning_utils.call_lightning_api(start_nowcast_time, end_nowcast_time, grid)
-            print(filename)
             lightning_data.to_csv(filename, index=False)
             print(f"Saved {filename} to disk.")
 
