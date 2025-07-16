@@ -1,15 +1,16 @@
 from global_variables import RADARS
 import utils
 import local_variables as loc_vars
+import numpy as np
 
 # Configurations
+run_dir = "../data/processed_data/run_1/"
+lightning_output_dir = run_dir + "lightning/"
+radar_output_dir     = run_dir + "radar/"
+radar_data_dir       = loc_vars.RADAR_FILE_DIR
 storms_filename = "../data/config/storm_periods.csv"
 radar = RADARS["hurum"]
 parameters = ["dBZ", "ZDR", "KDP", "RhoHV"]
-root_dir = "../data/processed_data/"
-lightning_output_dir = root_dir + "lightning/"
-radar_output_dir     = root_dir + "radar/"
-radar_data_dir       = loc_vars.RADAR_FILE_DIR
 lead_time   = 30 # minutes; time to predict in the future
 time_step   = 10 # minutes; length of time segments (defined by radar sweeps)
 time_window = 10 # minutes; length of time window for lightning aggregation
@@ -18,7 +19,8 @@ print("\n== Lightning Nowcasting Pipeline ==")
 print(f"\nProcessing radar: {radar['label']}")
 
 # Step 1: Create spatial grid around the radar
-grid = utils.create_radar_grid(radar["lat"], radar["lon"])
+grid = utils.create_radar_grid(radar["lat"], radar["lon"], 10, 10)
+np.savez(f"{run_dir}/grid.npz", **grid)
 
 # Step 2: Prosess lightning
 print("\nProcessing lightning targets...")
