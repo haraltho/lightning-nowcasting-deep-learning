@@ -36,7 +36,7 @@ def create_time_segments(start_of_storm, end_of_storm, time_window):
     return time_segments
 
 
-def create_radar_grid(radar_lat, radar_lon, cell_size=8000, n_cells=10):
+def create_radar_grid(radar_lat, radar_lon, cell_size=8000, n_cells_x=10, n_cells_y=10):
     """
     Create combined Cartesian/lat-lon grid for radar and lightning data
 
@@ -46,14 +46,17 @@ def create_radar_grid(radar_lat, radar_lon, cell_size=8000, n_cells=10):
         Radar location in degrees
     cell_size : float
         Grid cell size in meters (default: 8000m = 8km)
-    n_cells : int
-        Number of cells along each axis
+    n_cells_x : int
+        Number of cells along x-axis (East-West, longitude direction)
+    n_cells_y : int
+        Number of cells along y-axis (North-South, latitude direction)
     """
-    grid_length = cell_size * n_cells  # meters
+    grid_length_x = cell_size * n_cells_x  # meters
+    grid_length_y = cell_size * n_cells_y  # meters
 
     # Create Cartesian grid (meters from radar)
-    x_bounds_m = np.linspace(-grid_length/2, grid_length/2, n_cells+1)
-    y_bounds_m = np.linspace(-grid_length/2, grid_length/2, n_cells+1)
+    x_bounds_m = np.linspace(-grid_length_x/2, grid_length_x/2, n_cells_x+1)
+    y_bounds_m = np.linspace(-grid_length_y/2, grid_length_y/2, n_cells_y+1)
     x_centers_m = (x_bounds_m[:-1] + x_bounds_m[1:]) / 2
     y_centers_m = (y_bounds_m[:-1] + y_bounds_m[1:]) / 2
 
@@ -69,8 +72,10 @@ def create_radar_grid(radar_lat, radar_lon, cell_size=8000, n_cells=10):
         'radar_lat': radar_lat,
         'radar_lon': radar_lon,
         'cell_size_m': cell_size,
-        'n_cells': n_cells,
-        'grid_length_m': grid_length,
+        'n_cells_x': n_cells_x,
+        'n_cells_y': n_cells_y,
+        'grid_length_x': grid_length_x,
+        'grid_length_y': grid_length_y,
         'x_bounds_m': x_bounds_m,
         'y_bounds_m': y_bounds_m,
         'x_centers_m': x_centers_m,
