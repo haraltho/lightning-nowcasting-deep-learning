@@ -1,6 +1,8 @@
 import os
 import h5py
 import numpy as np
+import tensorflow as tf
+
 
 def get_file_splits(radar_dir, lightning_dir, train_ratio=0.8):
     """Split radar and lightning data files into training and validation sets."""
@@ -34,9 +36,6 @@ def load_data_to_tensors(radar_files, lightning_files, radar_dir, lightning_dir,
         Grid indexing: [lat_index, lon_index] = [North-South, East-West]
     """
 
-    # [height, width, altitude, parameters]
-    # [10, 10, 1, 4]
-
     X = []
     y = []
 
@@ -65,3 +64,37 @@ def load_data_to_tensors(radar_files, lightning_files, radar_dir, lightning_dir,
                     y.append(lightning_sample)
 
     return np.array(X), np.array(y)
+
+
+def create_weighted_loss(lightning_weight):
+
+    # Calculate weight once
+    
+
+    print(f"\nUsing lightning weight: {lightning_weight:.1f}")
+
+    def weighted_mse(y_true, y_pred):
+        weights = tf.where(y_true > 0, lightning_weight, 1.0)
+        squared_diff = tf.square(y_true - y_pred)
+        return tf.reduce_mean(weights * squared_diff)
+    
+    return weighted_mse
+
+
+def create_lightning_cnn(input_shape=(10, 10, 1, 4)):
+    layers = tf.keras.layers
+
+    # Boilderplate CNN model
+    model = tf.keras.Sequential([
+        layers.Input(shape=input_shape),
+        layers.Reshape((10, 10, 4)),  # Remove altitude dimension (10,10,1,4) → (10,10,4)
+        
+        # Simple 2D convolutions to capture spatial patterns
+        layers.Conv2D(32, kernel_size=(3, 3), activation='relu', padding='same'),
+        layers.Conv2D(16, kernel_size=(3, 3), activation='relu', padding='same'),
+        
+        # Final prediction
+        layers.Conv2D(1, kernel_size=(1, 1), activation='linear', padding='same'),
+        layers.Reshape((10, 10))  # Output: (10, 10) lightning predictions
+    ])
+    return model
