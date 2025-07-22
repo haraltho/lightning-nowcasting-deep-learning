@@ -69,32 +69,46 @@ def load_data_to_tensors(radar_files, lightning_files, radar_dir, lightning_dir,
     return np.array(X), np.array(y)
 
 
-def create_weighted_loss(lightning_weight):
-
-    print(f"\nUsing lightning weight: {lightning_weight:.1f}")
-
-    def weighted_mse(y_true, y_pred):
-        weights = tf.where(y_true > 0, lightning_weight, 1.0)
-        squared_diff = tf.square(y_true - y_pred)
-        return tf.reduce_mean(weights * squared_diff)
-    
-    return weighted_mse
-
-
 def create_lightning_cnn(input_shape=(10, 10, 1, 4)):
-    layers = tf.keras.layers
 
-    # Boilderplate CNN model
+    n_channels = input_shape[2] * input_shape[3]
+    
     model = tf.keras.Sequential([
-        layers.Input(shape=input_shape),
-        layers.Reshape((10, 10, 4)),  # Remove altitude dimension (10,10,1,4) → (10,10,4)
-        
-        # Simple 2D convolutions to capture spatial patterns
-        layers.Conv2D(32, kernel_size=(3, 3), activation='relu', padding='same'),
-        layers.Conv2D(16, kernel_size=(3, 3), activation='relu', padding='same'),
-        
-        # Final prediction
-        layers.Conv2D(1, kernel_size=(1, 1), activation='linear', padding='same'),
-        layers.Reshape((10, 10))  # Output: (10, 10) lightning predictions
+        tf.keras.layers.Input(shape=input_shape),
+        tf.keras.layers.Reshape((10, 10, n_channels)),  # Remove altitude dimension
+        tf.keras.layers.Conv2D(32, (3, 3), activation='relu', padding='same'),
+        tf.keras.layers.Conv2D(16, (3, 3), activation='relu', padding='same'),
+        tf.keras.layers.Conv2D(1, (1, 1), activation='sigmoid', padding='same'),  # sigmoid for binary
+        tf.keras.layers.Reshape((10, 10))
     ])
     return model
+
+
+def calculate_csi(y_true, y_pred, threshold=0.5):
+    """Calculate Critical Success Index"""
+
+    y_true_binary = (y_true > 0).astype(int).flatten()
+    y_pred_binary = (y_pred > threshold).astype(int).flatten()
+    
+    hits = np.sum((y_true_binary == 1) & (y_pred_binary == 1))
+    misses = np.sum((y_true_binary == 1) & (y_pred_binary == 0))
+    false_alarms = np.sum((y_true_binary == 0) & (y_pred_binary == 1))
+    
+    csi = hits / (hits + misses + false_alarms) if (hits + misses + false_alarms) > 0 else 0
+
+    return csi
+
+
+def evaluate_threshold(y_true, y_pred, n_thresholds=20):
+    """Compute CSI for multiple threshold values"""
+
+    max_pred = np.max(y_pred)
+
+    thresholds = np.linspace(0.001, max_pred, n_thresholds)
+
+    results = []
+    for threshold in thresholds:
+        csi = calculate_csi(y_true, y_pred, threshold=threshold)
+        results.append((threshold, csi))
+
+    return results
