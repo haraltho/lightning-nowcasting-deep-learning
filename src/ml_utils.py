@@ -4,22 +4,25 @@ import numpy as np
 import tensorflow as tf
 
 
-def get_file_splits(radar_dir, lightning_dir, train_ratio=0.8):
-    """Split radar and lightning data files into training and validation sets."""
+def get_file_splits(radar_dir, lightning_dir, train_ratio=0.7):
+    """Split radar and lightning data files into training, validation and test set."""
 
     radar_files = sorted([f for f in os.listdir(radar_dir) if f.endswith('.h5')])
     lightning_files = sorted([f for f in os.listdir(lightning_dir) if f.endswith('.h5')])
     
     n_files = len(radar_files)
     n_train = int(n_files * train_ratio)
-    n_val = n_files - n_train
-
-    train_radar = radar_files[:n_train]
+    n_val = int((n_files - n_train) / 2)
+    n_test = n_files - n_train - n_val
+    
+    train_radar     = radar_files[:n_train]
     train_lightning = lightning_files[:n_train]
-    test_radar = radar_files[n_train:]
-    test_lightning = lightning_files[n_train:]
+    validation_radar     = radar_files[n_train:n_train+n_val]
+    validation_lightning = lightning_files[n_train:n_train+n_val]
+    test_radar     = radar_files[n_train+n_val:]
+    test_lightning = lightning_files[n_train+n_val:]
 
-    return train_radar, train_lightning, test_radar, test_lightning
+    return train_radar, train_lightning, validation_radar, validation_lightning, test_radar, test_lightning
 
 
 def load_data_to_tensors(radar_files, lightning_files, radar_dir, lightning_dir, n_altitudes, parameters, leadtime, lightning_type):
@@ -67,9 +70,6 @@ def load_data_to_tensors(radar_files, lightning_files, radar_dir, lightning_dir,
 
 
 def create_weighted_loss(lightning_weight):
-
-    # Calculate weight once
-    
 
     print(f"\nUsing lightning weight: {lightning_weight:.1f}")
 
