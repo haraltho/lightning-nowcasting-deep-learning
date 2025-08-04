@@ -2,9 +2,12 @@ from global_variables import RADARS
 import utils
 import local_variables as loc_vars
 import numpy as np
+import os
+import sys
 
 # Configurations
-run_dir = "../data/processed_data/run_1/"
+run_dir = "../data/processed_data/run_3_2022_2023_2024/"
+os.makedirs(run_dir, exist_ok=True)
 lightning_output_dir = run_dir + "lightning/"
 radar_output_dir     = run_dir + "radar/"
 radar_data_dir       = loc_vars.RADAR_FILE_DIR
@@ -19,7 +22,7 @@ print("\n== Lightning Nowcasting Pipeline ==")
 print(f"\nProcessing radar: {radar['label']}")
 
 # Step 1: Create spatial grid around the radar
-grid = utils.create_radar_grid(radar["lat"], radar["lon"], 10, 10)
+grid = utils.create_radar_grid(radar["lat"], radar["lon"])
 np.savez(f"{run_dir}/grid.npz", **grid)
 
 # Step 2: Prosess lightning
