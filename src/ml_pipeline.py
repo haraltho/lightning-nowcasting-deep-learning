@@ -2,12 +2,20 @@ import numpy as np
 import matplotlib.pyplot as plt
 import tensorflow as tf
 import importlib
+import os
+import random
 
 import ml_utils
 importlib.reload(ml_utils)
 
+# Set seed number for reproducibility
+tf.random.set_seed(42)
+np.random.seed(42)
+os.environ['PYTHONHASHSEED'] = '42'
+random.seed(42)
+
 # Configurations
-run_dir = "../data/processed_data/run_1/"
+run_dir = "../data/processed_data/run_3_2022_2023_2024/"
 radar_dir     = run_dir + "radar/"
 lightning_dir = run_dir + "lightning/"
 parameters    = ['dBZ', 'ZDR', 'KDP', 'RhoHV']
@@ -22,7 +30,7 @@ train_radar, train_lightning, validation_radar, validation_lightning, test_radar
 # Step 2: Load h5 file and return tensors
 print("\nLoading data into tensors...")
 X_train, y_train = ml_utils.load_data_to_tensors(train_radar, train_lightning, radar_dir, lightning_dir, n_altitudes, parameters, leadtime, lightning_type)
-X_val, y_val = ml_utils.load_data_to_tensors(validation_radar, validation_lightning, radar_dir, lightning_dir, n_altitudes, parameters, leadtime, lightning_type)
+X_val,   y_val   = ml_utils.load_data_to_tensors(validation_radar, validation_lightning, radar_dir, lightning_dir, n_altitudes, parameters, leadtime, lightning_type)
 X_test , y_test  = ml_utils.load_data_to_tensors(test_radar,  test_lightning,  radar_dir, lightning_dir, n_altitudes, parameters, leadtime, lightning_type)
 
 # Convert targets to binary
@@ -52,18 +60,16 @@ print(np.mean(X_train_normalized, axis=(0,1,2,3)))
 print(np.std(X_train_normalized, axis=(0,1,2,3)))  
 
 # Step 4: Deal with class imbalance
-n_total = np.size(y_train)
-n_lightning = np.sum(y_train > 0)
-n_non_lightning = n_total - n_lightning
-lightning_weight = float(n_non_lightning / n_lightning)
+neg_count = np.sum(y_train_binary == 0)
+pos_count = np.sum(y_train_binary == 1)
+initial_bias = np.log(pos_count / neg_count)
+print(f"\nInitial class imbalance: {neg_count} negatives, {pos_count} positives")
+print(f"Initial bias for loss function: {initial_bias:.4f}\n")
 
-print(f"Class imbalance ratio: {lightning_weight:.2f}")
-print(f"No lightning: {n_non_lightning}, Lightning: {n_lightning}")
 
-class_weights = {0: 1.0, 1: lightning_weight}
 
 # Step 5: Create a simple CNN model
-model = ml_utils.create_lightning_cnn(np.shape(X_test_normalized)[1:])
+model = ml_utils.create_lightning_cnn(np.shape(X_test_normalized)[1:], initial_bias)
 model.compile(
     optimizer='adam',
     loss='binary_crossentropy',
@@ -77,14 +83,12 @@ early_stopping = tf.keras.callbacks.EarlyStopping(
     restore_best_weights=True
 )
 
-
 history = model.fit(
         X_train_normalized,
         y_train_binary,
         epochs=200,
         batch_size=32,
         validation_data=(X_val_normalized, y_val_binary),
-        # class_weight=class_weights,
         callbacks=[early_stopping]
 )
 
@@ -97,13 +101,22 @@ print("\n" + "="*50)
 y_pred = model.predict(X_test_normalized)
 
 # Predictions give probablities. Convert back to binary by exploring different thresholds.
-threshold_csi = ml_utils.evaluate_threshold(y_test, y_pred)
+threshold_csi = ml_utils.evaluate_threshold(y_test_binary, y_pred)
 
 # Find the threshold with highest CSI
 best_threshold, best_csi = max(threshold_csi, key=lambda x: x[1])
-print(f"Best threshold: {best_threshold:.4f}")
+print(f"\nBest threshold: {best_threshold:.4f}")
 print(f"Best CSI: {best_csi:.4f}")
 
 # Make final binary predictions
 y_pred_binary = (y_pred > best_threshold).astype(int)
+
+# Generate detailed output
+ml_utils.print_detailed_results(y_test_binary, y_pred_binary)
+
+# Plot X_true, y_true and y_pred
+print("\n-- PLOTTING RESULTS --")
+# ml_utils.visualize_results(X_test, y_test_binary, y_pred_binary, run_dir)
+
+print("\n-- FINISHED --")
 
