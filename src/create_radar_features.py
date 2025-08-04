@@ -43,6 +43,8 @@ def create_radar_features(time_segments_file, grid, time_step, data_dir, output_
 
             # Compute Cartesian coordinates 
             filename = radar_utils.construct_radar_filename(reference_time, radar, parameters[0], data_dir, time_step)
+            if filename is None:
+                continue
             radar_sweeps = radar_utils.load_all_sweeps(filename)
             x, y, z = radar_utils.convert_all_sweeps_to_cartesian(radar_sweeps)
 

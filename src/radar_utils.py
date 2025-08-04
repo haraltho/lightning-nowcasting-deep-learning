@@ -59,7 +59,8 @@ def construct_radar_filename(reference_time, radar, parameter, data_dir, time_st
         else:
             return matching_files[0]
         
-    raise FileNotFoundError(f"No radar file found for reference time or up to 30min earlier.")
+    print(f"No radar file found for reference time or up to 30min earlier.")
+    return None
 
 
 def load_all_sweeps(filename):
