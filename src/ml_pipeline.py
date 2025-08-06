@@ -4,6 +4,7 @@ import tensorflow as tf
 import importlib
 import os
 import random
+from sklearn.metrics import average_precision_score, roc_auc_score
 
 import ml_utils
 importlib.reload(ml_utils)
@@ -21,7 +22,7 @@ lightning_dir = run_dir + "lightning/"
 parameters    = ['dBZ', 'ZDR', 'KDP', 'RhoHV']
 n_altitudes   = 20  # Using only lowest altitude for simplicity
 leadtime      = 30
-lightning_type = "cloud_to_ground" # "total" or "cloud_to_ground" or "intracloud"
+lightning_type = "total" # "total" or "cloud_to_ground" or "intracloud"
 
 # Step 1: Split data into training days, validation days and test days
 print("\nSplitting data into training and test sets...")
@@ -113,6 +114,13 @@ y_pred_binary = (y_pred > best_threshold).astype(int)
 
 # Generate detailed output
 ml_utils.print_detailed_results(y_test_binary, y_pred_binary)
+
+# Calculate threshold-independent metrics
+auc_pr  = average_precision_score(y_test_binary.flatten(), y_pred.flatten())
+auc_roc = roc_auc_score(y_test_binary.flatten(), y_pred.flatten())
+
+print(f"\nAUC-PR: {auc_pr:.4f}")
+print(f"AUC-ROC: {auc_roc:.4f}")
 
 # Plot X_true, y_true and y_pred
 print("\n-- PLOTTING RESULTS --")
