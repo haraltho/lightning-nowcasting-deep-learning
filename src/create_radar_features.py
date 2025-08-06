@@ -56,7 +56,11 @@ def create_radar_features(time_segments_file, grid, time_step, data_dir, output_
                 values = radar_utils.extract_parameter_values(radar_sweeps, dataset_key)
 
                 # Interpolate to grid
-                values_interpolated = radar_utils.interpolate_to_grid(x, y, z, values, grid)
+                # values_interpolated = radar_utils.interpolate_to_grid(x, y, z, values, grid)
+                values_interpolated = radar_utils.k_nearest_neighbors_anisotropic(x, y, z, values,
+                                                                                  grid,
+                                                                                  k=100, 
+                                                                                  vertical_scale=16)
                 time_features[param] = values_interpolated
 
             # Store features for this time segment

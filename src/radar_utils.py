@@ -3,6 +3,8 @@ import glob
 import xarray as xr
 import numpy as np
 from scipy.interpolate import griddata
+from scipy.spatial import cKDTree
+
 import h5py
 import os
 
@@ -185,6 +187,91 @@ def interpolate_to_grid(x, y, z, values, grid):
 
     values_interpolated = grid_values.reshape(x_grid.shape)
     return values_interpolated
+
+
+def k_nearest_neighbors_anisotropic(x, y, z, values,
+                                       grid,
+                                       k=4, 
+                                       vertical_scale=16.0):
+    """
+    Interpolate radar data to regular 3D grid using anisotropic k-nearest neighbors.
+    
+    Uses vertical scaling to account for different grid spacing in horizontal vs. 
+    vertical directions.
+    
+    Parameters
+    ----------
+    x, y, z : array_like
+        Radar measurement coordinates in meters  
+    values : array_like
+        Radar values to interpolate
+    grid : dict
+        Grid definition containing 'x_centers_m', 'y_centers_m', 'z_levels_m'
+    k : int, default 4
+        Number of nearest neighbors to find
+    vertical_scale : float, default 16.0
+        Scaling factor for vertical coordinates to create isotropic search space
+        
+    Returns
+    -------
+    ndarray
+        Interpolated values with shape (n_y, n_x, n_z), NaN where insufficient neighbors
+    """
+
+    x_m = grid['x_centers_m']
+    y_m = grid['y_centers_m']
+    z_m = grid['z_levels_m']
+
+    max_distance = grid['cell_size_m'] / 2
+
+    # Create 3D grid to interpolate to
+    x_grid, y_grid, z_grid = np.meshgrid(x_m, y_m, z_m)
+
+    # Flatten grid
+    grid_points = np.column_stack([
+        x_grid.flatten(),
+        y_grid.flatten(),
+        z_grid.flatten() * vertical_scale  # Scale vertical coordinate
+    ])
+
+    # Only use valid data
+    valid = ~np.isnan(values)
+    x_valid = x[valid]
+    y_valid = y[valid]
+    z_valid = z[valid]
+    dbzh_valid = values[valid]
+
+    # Rescale z before building the KDTree
+    points = np.column_stack([
+        x_valid,
+        y_valid,
+        z_valid * vertical_scale
+    ])
+    tree = cKDTree(points)
+
+    # Find k nearest neighbors for each voxel
+    distances, indices = tree.query(grid_points, k=k)
+    print(np.shape(distances), np.shape(indices))
+
+    # Initialize result array with NaNs
+    interpolated = np.full(len(grid_points), np.nan)
+
+    # Loop through each grid point (voxel)
+    for i in range(len(grid_points)):
+        neighbor_idxs = indices[i]
+        d = distances[i]
+
+        # Select only neighbors within max_distance
+        within_mask = d < max_distance
+
+        if np.any(within_mask):
+            valid_values = dbzh_valid[neighbor_idxs[within_mask]]
+            interpolated[i] = np.mean(valid_values)  
+
+    # Reshape to grid
+    interpolated_final = interpolated.reshape(x_grid.shape)
+
+    return interpolated_final
 
 
 def save_radar_features(daily_features, output_dir, date_label, grid):
