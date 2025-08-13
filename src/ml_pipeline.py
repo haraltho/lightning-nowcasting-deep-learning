@@ -49,9 +49,9 @@ print(f"Lightning fraction in test: {np.mean(y_test_binary)*100:.2f}%")
 # Normalizing data: Fill nan's, produce mask
 print("\nNormalizing the data...")
 means, stds = ml_utils.compute_normalization_parameters(X_train)
-X_train_normalized, X_train_mask = ml_utils.normalize_and_preprocess(X_train, means, stds)
-X_val_normalized,   X_val_mask   = ml_utils.normalize_and_preprocess(X_val,   means, stds)
-X_test_normalized,  X_test_mask  = ml_utils.normalize_and_preprocess(X_test,  means, stds)
+X_train_normalized, _ = ml_utils.normalize_and_preprocess(X_train, means, stds)
+X_val_normalized,   _ = ml_utils.normalize_and_preprocess(X_val,   means, stds)
+X_test_normalized,  _ = ml_utils.normalize_and_preprocess(X_test,  means, stds)
 
 print("\nBefore normalization: X_train mean and std per parameter:")
 print("mean: ", np.nanmean(X_train, axis=(0,1,2,3)))  
@@ -125,7 +125,7 @@ print(f"AUC-ROC: {auc_roc:.4f}")
 
 # Plot X_true, y_true and y_pred
 print("\n-- PLOTTING RESULTS --")
-ml_utils.visualize_results(X_test, y_test_binary, y_pred_binary, run_dir)
+# ml_utils.visualize_results(X_test, y_test_binary, y_pred_binary, run_dir)
 
 print("\n-- FINISHED --")
 
