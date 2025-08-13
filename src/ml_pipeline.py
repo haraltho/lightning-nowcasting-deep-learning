@@ -5,6 +5,7 @@ import importlib
 import os
 import random
 from sklearn.metrics import average_precision_score, roc_auc_score
+import sys
 
 import ml_utils
 importlib.reload(ml_utils)
@@ -16,10 +17,11 @@ os.environ['PYTHONHASHSEED'] = '42'
 random.seed(42)
 
 # Configurations
-run_dir = "../data/processed_data/run_3_2022_2023_2024/"
+run_dir = "../data/processed_data/run_5_knn100/"
 radar_dir     = run_dir + "radar/"
 lightning_dir = run_dir + "lightning/"
 parameters    = ['dBZ', 'ZDR', 'KDP', 'RhoHV']
+parameters    = ['dBZ']
 n_altitudes   = 20  # Using only lowest altitude for simplicity
 leadtime      = 30
 lightning_type = "total" # "total" or "cloud_to_ground" or "intracloud"
@@ -34,6 +36,7 @@ X_train, y_train = ml_utils.load_data_to_tensors(train_radar, train_lightning, r
 X_val,   y_val   = ml_utils.load_data_to_tensors(validation_radar, validation_lightning, radar_dir, lightning_dir, n_altitudes, parameters, leadtime, lightning_type)
 X_test , y_test  = ml_utils.load_data_to_tensors(test_radar,  test_lightning,  radar_dir, lightning_dir, n_altitudes, parameters, leadtime, lightning_type)
 
+
 # Convert targets to binary
 y_train_binary = (y_train>0).astype(float)
 y_val_binary   = (y_val>0).astype(float)
@@ -43,22 +46,21 @@ print(f"Lightning fraction in train: {np.mean(y_train_binary)*100:.2f}%")
 print(f"Lightning fraction in val: {np.mean(y_val_binary)*100:.2f}%")
 print(f"Lightning fraction in test: {np.mean(y_test_binary)*100:.2f}%")
 
-# Step 3: Normalize the data
+# Normalizing data: Fill nan's, produce mask
 print("\nNormalizing the data...")
-normalizer = tf.keras.layers.Normalization(axis=-1)
-normalizer.adapt(X_train)
+means, stds = ml_utils.compute_normalization_parameters(X_train)
+X_train_normalized, X_train_mask = ml_utils.normalize_and_preprocess(X_train, means, stds)
+X_val_normalized,   X_val_mask   = ml_utils.normalize_and_preprocess(X_val,   means, stds)
+X_test_normalized,  X_test_mask  = ml_utils.normalize_and_preprocess(X_test,  means, stds)
 
 print("\nBefore normalization: X_train mean and std per parameter:")
-print("mean: ", np.mean(X_train, axis=(0,1,2,3)))  
-print("std: ", np.std(X_train, axis=(0,1,2,3)))  
+print("mean: ", np.nanmean(X_train, axis=(0,1,2,3)))  
+print("std: ",  np.nanstd(X_train,  axis=(0,1,2,3)))  
 
-# Apply normalization
-X_train_normalized = normalizer(X_train)
-X_val_normalized   = normalizer(X_val)
-X_test_normalized  = normalizer(X_test)
 print("\nAfter normalization: X_train mean and std per parameter:")
 print(np.mean(X_train_normalized, axis=(0,1,2,3)))  
-print(np.std(X_train_normalized, axis=(0,1,2,3)))  
+print(np.std(X_train_normalized,  axis=(0,1,2,3)))  
+
 
 # Step 4: Deal with class imbalance
 neg_count = np.sum(y_train_binary == 0)
@@ -66,7 +68,6 @@ pos_count = np.sum(y_train_binary == 1)
 initial_bias = np.log(pos_count / neg_count)
 print(f"\nInitial class imbalance: {neg_count} negatives, {pos_count} positives")
 print(f"Initial bias for loss function: {initial_bias:.4f}\n")
-
 
 
 # Step 5: Create a simple CNN model
@@ -124,7 +125,7 @@ print(f"AUC-ROC: {auc_roc:.4f}")
 
 # Plot X_true, y_true and y_pred
 print("\n-- PLOTTING RESULTS --")
-# ml_utils.visualize_results(X_test, y_test_binary, y_pred_binary, run_dir)
+ml_utils.visualize_results(X_test, y_test_binary, y_pred_binary, run_dir)
 
 print("\n-- FINISHED --")
 

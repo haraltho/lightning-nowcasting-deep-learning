@@ -72,7 +72,7 @@ def load_data_to_tensors(radar_files, lightning_files, radar_dir, lightning_dir,
 
 def create_lightning_cnn(input_shape=(10, 10, 1, 4), initial_bias=None):
 
-    n_channels = input_shape[2] * input_shape[3]
+    n_channels = input_shape[2] * input_shape[3] # n_elevations * n_parameters
 
     if initial_bias is not None:
         bias_initializer = tf.keras.initializers.Constant(initial_bias) 
@@ -171,3 +171,40 @@ def visualize_results(X_test, y_test, y_pred, dir):
         plt.tight_layout()
         plt.savefig(f"{output_dir}prediction_{i}.png", dpi=150, bbox_inches='tight')
         plt.close()
+
+
+def compute_normalization_parameters(X):
+
+    n_param = np.shape(X)[4]
+
+    means = np.zeros(n_param)
+    stds  = np.zeros(n_param)
+
+    for i in range(n_param):
+        X_i = X[:,:,:,:,i]
+        means[i] = np.nanmean(X_i)
+        stds[i]  = np.nanstd(X_i)
+
+    return means, stds
+
+
+
+def normalize_and_preprocess(X, means, stds):
+
+    # shape(X): (n_samples, n_lat, n_lon, n_alt, n_para)
+
+    n_param = np.shape(X)[4]
+    X = X.copy()
+
+    for i in range(n_param):
+        X_i    = X[:,:,:,:,i]
+        mean   = means[i]
+        stdev  = stds[i]
+        X_i    = (X_i - mean) / stdev
+
+        X[:,:,:,:,i] = X_i
+
+    mask = ~np.isnan(X)
+    X[~mask] = 0
+
+    return X, mask
