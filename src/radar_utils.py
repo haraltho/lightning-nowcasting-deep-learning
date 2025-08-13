@@ -189,10 +189,7 @@ def interpolate_to_grid(x, y, z, values, grid):
     return values_interpolated
 
 
-def k_nearest_neighbors_anisotropic(x, y, z, values,
-                                       grid,
-                                       k=4, 
-                                       vertical_scale=16.0):
+def k_nearest_neighbors_anisotropic(x, y, z, values, grid, k):
     """
     Interpolate radar data to regular 3D grid using anisotropic k-nearest neighbors.
     
@@ -209,8 +206,7 @@ def k_nearest_neighbors_anisotropic(x, y, z, values,
         Grid definition containing 'x_centers_m', 'y_centers_m', 'z_levels_m'
     k : int, default 4
         Number of nearest neighbors to find
-    vertical_scale : float, default 16.0
-        Scaling factor for vertical coordinates to create isotropic search space
+
         
     Returns
     -------
@@ -222,7 +218,10 @@ def k_nearest_neighbors_anisotropic(x, y, z, values,
     y_m = grid['y_centers_m']
     z_m = grid['z_levels_m']
 
-    max_distance = grid['cell_size_m'] / 2
+    radius = grid['cell_size_m'] / 2
+    max_distance = np.sqrt(radius**2 + radius**2 + radius**2)
+
+    vertical_scale = (x_m[1] - x_m[0]) / (z_m[1] - z_m[0])
 
     # Create 3D grid to interpolate to
     x_grid, y_grid, z_grid = np.meshgrid(x_m, y_m, z_m)
@@ -251,7 +250,6 @@ def k_nearest_neighbors_anisotropic(x, y, z, values,
 
     # Find k nearest neighbors for each voxel
     distances, indices = tree.query(grid_points, k=k)
-    print(np.shape(distances), np.shape(indices))
 
     # Initialize result array with NaNs
     interpolated = np.full(len(grid_points), np.nan)
