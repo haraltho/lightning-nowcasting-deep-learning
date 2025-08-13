@@ -143,9 +143,9 @@ def print_detailed_results(y_true, y_pred):
 
     print(f"\n  Hits: {hits}, Misses: {misses}, False Alarms: {false_alarms}, Correct Negatives: {correct_negatives}")
     print(f"  CSI: {csi:.4f}")
-    print(f"  Precision: {precision:.4f}")
-    print(f"  Recall: {recall:.4f}")
-    print(f"  Accuracy: {accuracy:.4f}")
+    print(f"  Precision: {precision*100:.2f}%\t When lightning predicted, how often was it right")
+    print(f"  Recall: {recall*100:.2f}%\t How many lightning events were caught")
+    print(f"  Accuracy: {accuracy*100:.2f}%")
 
 
 def visualize_results(X_test, y_test, y_pred, dir):
