@@ -3,6 +3,7 @@ import h5py
 import numpy as np
 import tensorflow as tf
 import matplotlib.pyplot as plt
+import sys
 
 
 def get_file_splits(radar_dir, lightning_dir, train_ratio=0.7):
@@ -69,6 +70,58 @@ def load_data_to_tensors(radar_files, lightning_files, radar_dir, lightning_dir,
 
     return np.array(X), np.array(y)
 
+
+def load_data_to_tensors_temporal(radar_files, lightning_files, radar_dir, lightning_dir, n_altitudes, parameters, leadtime, lightning_type, n_timesteps):
+    """
+    Load radar and lightning data into tensors for convLSTM training.
+    
+    Returns
+    -------
+    X : numpy.ndarray
+        Radar features with shape [n_samples, n_timesteps, n_lat, n_lon, n_altitudes, n_parameters]
+        Grid indexing: [lat_index, lon_index] = [North-South, East-West]
+    y : numpy.ndarray  
+        Lightning targets with shape [n_samples, n_lat, n_lon]
+        Grid indexing: [lat_index, lon_index] = [North-South, East-West]
+    """
+
+    X = []
+    y = []
+
+    for radar_file, lightning_file in zip(radar_files, lightning_files):
+
+        radar_path     = os.path.join(radar_dir, radar_file)
+        lightning_path = os.path.join(lightning_dir, lightning_file)
+
+        with h5py.File(radar_path, 'r') as radar_h5:
+            with h5py.File(lightning_path, 'r') as lightning_h5:
+
+                leadtime_group = f"lightning_{leadtime}min_leadtime"
+                timestamps = sorted(radar_h5.keys())
+
+                for i in range(n_timesteps-1, len(timestamps)):
+                    timestamps_slice = timestamps[i-n_timesteps+1:i+1]
+
+                    temporal_sequence = []
+                    for timestamp in timestamps_slice:
+                        radar_params = []
+                        for param in parameters:
+                            param_data = radar_h5[timestamp][param][:, :, :n_altitudes]
+                            radar_params.append(param_data)
+                        radar_params = np.stack(radar_params, axis=-1)
+
+                        temporal_sequence.append(radar_params)
+
+                    temporal_sample = np.stack(temporal_sequence, axis=0)  # Shape: [n_timesteps, n_lat, n_lon, n_altitudes, n_parameters]
+                    X.append(temporal_sample)
+
+                    # Lightning data
+                    lightning_sample = lightning_h5[leadtime_group][timestamps[i]][lightning_type][:]
+                    y.append(lightning_sample)
+
+    return np.array(X), np.array(y)
+
+    
 
 def create_lightning_cnn(input_shape=(10, 10, 1, 4), initial_bias=None):
 
