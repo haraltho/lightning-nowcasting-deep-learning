@@ -20,11 +20,12 @@ random.seed(42)
 run_dir = "../data/processed_data/run_5_knn100/"
 radar_dir     = run_dir + "radar/"
 lightning_dir = run_dir + "lightning/"
-parameters    = ['dBZ', 'ZDR', 'KDP', 'RhoHV']
-parameters    = ['dBZ']
+# parameters    = ['dBZ', 'ZDR', 'KDP', 'RhoHV']
+parameters    = ['dBZ', 'ZDR']
 n_altitudes   = 20  # Using only lowest altitude for simplicity
 leadtime      = 30
 lightning_type = "total" # "total" or "cloud_to_ground" or "intracloud"
+n_timesteps = 3  # Number of timesteps for convLSTM
 
 # Step 1: Split data into training days, validation days and test days
 print("\nSplitting data into training and test sets...")
@@ -32,9 +33,17 @@ train_radar, train_lightning, validation_radar, validation_lightning, test_radar
 
 # Step 2: Load h5 file and return tensors
 print("\nLoading data into tensors...")
-X_train, y_train = ml_utils.load_data_to_tensors(train_radar, train_lightning, radar_dir, lightning_dir, n_altitudes, parameters, leadtime, lightning_type)
-X_val,   y_val   = ml_utils.load_data_to_tensors(validation_radar, validation_lightning, radar_dir, lightning_dir, n_altitudes, parameters, leadtime, lightning_type)
-X_test , y_test  = ml_utils.load_data_to_tensors(test_radar,  test_lightning,  radar_dir, lightning_dir, n_altitudes, parameters, leadtime, lightning_type)
+X_train, y_train = ml_utils.load_data_to_tensors_temporal(train_radar, train_lightning, radar_dir, 
+                                                 lightning_dir, n_altitudes, parameters, 
+                                                 leadtime, lightning_type, n_timesteps)
+X_val,   y_val   = ml_utils.load_data_to_tensors_temporal(validation_radar, validation_lightning, 
+                                                 radar_dir, lightning_dir, n_altitudes, parameters, leadtime, lightning_type, n_timesteps)
+X_test , y_test  = ml_utils.load_data_to_tensors_temporal(test_radar,  test_lightning,  radar_dir, 
+                                                 lightning_dir, n_altitudes, parameters, 
+                                                 leadtime, lightning_type, n_timesteps)
+# shape(X) = [n_samples, n_timesteps, n_lat, n_lon, n_altitudes, n_parameters]
+sys.exit("asdf")
+
 
 
 # Convert targets to binary
