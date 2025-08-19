@@ -21,11 +21,11 @@ run_dir = "../data/processed_data/run_5_knn100/"
 radar_dir     = run_dir + "radar/"
 lightning_dir = run_dir + "lightning/"
 # parameters    = ['dBZ', 'ZDR', 'KDP', 'RhoHV']
-parameters    = ['dBZ', 'ZDR']
+parameters    = ['dBZ']
 n_altitudes   = 20  # Using only lowest altitude for simplicity
 leadtime      = 30
 lightning_type = "total" # "total" or "cloud_to_ground" or "intracloud"
-n_timesteps = 3  # Number of timesteps for convLSTM
+n_timesteps = 12  # Number of timesteps for convLSTM
 
 # Step 1: Split data into training days, validation days and test days
 print("\nSplitting data into training and test sets...")
@@ -33,6 +33,7 @@ train_radar, train_lightning, validation_radar, validation_lightning, test_radar
 
 # Step 2: Load h5 file and return tensors
 print("\nLoading data into tensors...")
+# shape(X) = [n_samples, n_timesteps, n_lat, n_lon, n_altitudes, n_parameters]
 X_train, y_train = ml_utils.load_data_to_tensors_temporal(train_radar, train_lightning, radar_dir, 
                                                  lightning_dir, n_altitudes, parameters, 
                                                  leadtime, lightning_type, n_timesteps)
@@ -41,9 +42,6 @@ X_val,   y_val   = ml_utils.load_data_to_tensors_temporal(validation_radar, vali
 X_test , y_test  = ml_utils.load_data_to_tensors_temporal(test_radar,  test_lightning,  radar_dir, 
                                                  lightning_dir, n_altitudes, parameters, 
                                                  leadtime, lightning_type, n_timesteps)
-# shape(X) = [n_samples, n_timesteps, n_lat, n_lon, n_altitudes, n_parameters]
-sys.exit("asdf")
-
 
 
 # Convert targets to binary
@@ -52,23 +50,24 @@ y_val_binary   = (y_val>0).astype(float)
 y_test_binary  = (y_test>0).astype(float)
 
 print(f"Lightning fraction in train: {np.mean(y_train_binary)*100:.2f}%")
-print(f"Lightning fraction in val: {np.mean(y_val_binary)*100:.2f}%")
-print(f"Lightning fraction in test: {np.mean(y_test_binary)*100:.2f}%")
+print(f"Lightning fraction in val:   {np.mean(y_val_binary)*100:.2f}%")
+print(f"Lightning fraction in test:  {np.mean(y_test_binary)*100:.2f}%")
+
 
 # Normalizing data: Fill nan's, produce mask
 print("\nNormalizing the data...")
-means, stds = ml_utils.compute_normalization_parameters(X_train)
-X_train_normalized, _ = ml_utils.normalize_and_preprocess(X_train, means, stds)
-X_val_normalized,   _ = ml_utils.normalize_and_preprocess(X_val,   means, stds)
-X_test_normalized,  _ = ml_utils.normalize_and_preprocess(X_test,  means, stds)
+means, stdevs = ml_utils.compute_normalization_parameters(X_train, len(parameters))
+X_train_normalized, _ = ml_utils.normalize_and_preprocess(X_train, means, stdevs, len(parameters))
+X_val_normalized,   _ = ml_utils.normalize_and_preprocess(X_val,   means, stdevs, len(parameters))
+X_test_normalized,  _ = ml_utils.normalize_and_preprocess(X_test,  means, stdevs, len(parameters))
 
 print("\nBefore normalization: X_train mean and std per parameter:")
-print("mean: ", np.nanmean(X_train, axis=(0,1,2,3)))  
-print("std: ",  np.nanstd(X_train,  axis=(0,1,2,3)))  
+print("mean: ", np.nanmean(X_train, axis=(0,1,2,3,4)))  
+print("std: ",  np.nanstd(X_train,  axis=(0,1,2,3,4)))  
 
 print("\nAfter normalization: X_train mean and std per parameter:")
-print(np.mean(X_train_normalized, axis=(0,1,2,3)))  
-print(np.std(X_train_normalized,  axis=(0,1,2,3)))  
+print(np.nanmean(X_train_normalized, axis=(0,1,2,3,4)))  
+print(np.nanstd(X_train_normalized,  axis=(0,1,2,3,4)))  
 
 
 # Step 4: Deal with class imbalance
@@ -80,7 +79,7 @@ print(f"Initial bias for loss function: {initial_bias:.4f}\n")
 
 
 # Step 5: Create a simple CNN model
-model = ml_utils.create_lightning_cnn(np.shape(X_test_normalized)[1:], initial_bias)
+model = ml_utils.create_lightning_convLSTM2D(np.shape(X_test_normalized)[1:], initial_bias)
 model.compile(
     optimizer='adam',
     loss='binary_crossentropy',

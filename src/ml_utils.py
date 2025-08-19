@@ -140,12 +140,37 @@ def create_lightning_cnn(input_shape=(10, 10, 1, 4), initial_bias=None):
     model = tf.keras.Sequential([
         tf.keras.layers.Input(shape=input_shape),
         tf.keras.layers.Reshape((10, 10, n_channels)),  # Remove altitude dimension
-        tf.keras.layers.Conv2D(32, (3, 3), activation='relu', padding='same'),
-        tf.keras.layers.Conv2D(16, (3, 3), activation='relu', padding='same'),
-        tf.keras.layers.Conv2D(1, (1, 1), activation='sigmoid', padding='same', 
+        tf.keras.layers.Conv2D(32, (3, 3), activation='relu',    padding='same'),
+        tf.keras.layers.Conv2D(16, (3, 3), activation='relu',    padding='same'),
+        tf.keras.layers.Conv2D(1, (1, 1),  activation='sigmoid', padding='same', 
                                bias_initializer=bias_initializer),  # sigmoid for binary
         tf.keras.layers.Reshape((10, 10))
     ])
+    return model
+
+
+def create_lightning_convLSTM2D(input_shape, initial_bias):
+
+    if initial_bias is not None:
+        bias_initializer = tf.keras.initializers.Constant(initial_bias)
+    else:
+        bias_initializer = 'zeros'
+
+
+    # Calculate number of channels
+    n_altitudes  = input_shape[3]
+    n_parameters = input_shape[4]
+    n_channels   = n_altitudes * n_parameters
+    
+    model = tf.keras.Sequential([
+        tf.keras.layers.Input(shape=input_shape),
+        tf.keras.layers.Reshape((input_shape[0], input_shape[1], input_shape[2], n_channels)),
+        tf.keras.layers.ConvLSTM2D(32, (3, 3), activation='relu', padding='same', return_sequences=False),
+        tf.keras.layers.Conv2D(16, (3, 3), activation='relu', padding='same'),
+        tf.keras.layers.Conv2D(1, (1, 1), activation='sigmoid', padding='same', bias_initializer=bias_initializer),  # sigmoid for binary
+        tf.keras.layers.Reshape((10, 10))      
+    ])
+
     return model
 
 
@@ -231,36 +256,32 @@ def visualize_results(X_test, y_test, y_pred, dir):
         plt.close()
 
 
-def compute_normalization_parameters(X):
-
-    n_param = np.shape(X)[4]
+def compute_normalization_parameters(X, n_param):
 
     means = np.zeros(n_param)
     stds  = np.zeros(n_param)
 
     for i in range(n_param):
-        X_i = X[:,:,:,:,i]
+        X_i = X[:,0,:,:,:,i]
         means[i] = np.nanmean(X_i)
         stds[i]  = np.nanstd(X_i)
 
     return means, stds
 
 
+def normalize_and_preprocess(X, means, stdevs, n_param):
 
-def normalize_and_preprocess(X, means, stds):
+    # shape(X): (n_samples, n_timesteps, n_lat, n_lon, n_alt, n_param)
 
-    # shape(X): (n_samples, n_lat, n_lon, n_alt, n_para)
-
-    n_param = np.shape(X)[4]
     X = X.copy()
 
     for i in range(n_param):
-        X_i    = X[:,:,:,:,i]
+        X_i    = X[:,:,:,:,:,i]
         mean   = means[i]
-        stdev  = stds[i]
+        stdev  = stdevs[i]
         X_i    = (X_i - mean) / stdev
 
-        X[:,:,:,:,i] = X_i
+        X[:,:,:,:,:,i] = X_i
 
     mask = ~np.isnan(X)
     X[~mask] = 0
