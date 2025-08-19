@@ -73,12 +73,17 @@ def load_data_to_tensors(radar_files, lightning_files, radar_dir, lightning_dir,
 
 def load_data_to_tensors_temporal(radar_files, lightning_files, radar_dir, lightning_dir, n_altitudes, parameters, leadtime, lightning_type, n_timesteps):
     """
-    Load radar and lightning data into tensors for convLSTM training.
+    Load radar and lightning data into tensors for convLSTM training. 
     
     Returns
     -------
     X : numpy.ndarray
         Radar features with shape [n_samples, n_timesteps, n_lat, n_lon, n_altitudes, n_parameters]
+            n_samples: number of target/feature pairs
+            n_timesteps: number of timesteps per sample
+            n_lat / n_lon: number of latitude/longitude steps
+            n_altitudes: number of altitude layers
+            n_parameters: number of parameters [dBZ, ...]
         Grid indexing: [lat_index, lon_index] = [North-South, East-West]
     y : numpy.ndarray  
         Lightning targets with shape [n_samples, n_lat, n_lon]
