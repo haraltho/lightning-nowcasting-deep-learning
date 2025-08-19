@@ -25,7 +25,8 @@ parameters    = ['dBZ']
 n_altitudes   = 20  # Using only lowest altitude for simplicity
 leadtime      = 30
 lightning_type = "total" # "total" or "cloud_to_ground" or "intracloud"
-n_timesteps = 12  # Number of timesteps for convLSTM
+n_timesteps = 6  # Number of timesteps for convLSTM
+model_type    = "convlstm3d" # "convlstm2d" or "convlstm3d"
 
 # Step 1: Split data into training days, validation days and test days
 print("\nSplitting data into training and test sets...")
@@ -79,7 +80,21 @@ print(f"Initial bias for loss function: {initial_bias:.4f}\n")
 
 
 # Step 5: Create a simple CNN model
-model = ml_utils.create_lightning_convLSTM2D(np.shape(X_test_normalized)[1:], initial_bias)
+
+if model_type=="convlstm2d":
+    model = ml_utils.create_lightning_convLSTM2D(np.shape(X_test_normalized)[1:], initial_bias)
+elif model_type=="convlstm3d":
+    # Transpose to from
+    # [n_samples, n_timesteps, n_lat, n_lon, n_altitudes, n_parameters]
+    # to
+    # [n_samples, n_timesteps, n_altitudes, n_lat, n_lon, n_parameters]
+    # since this shape is required by ConvLSTM3D
+    transpose_indices = (0, 1, 4, 2, 3, 5)
+    X_train_normalized = np.transpose(X_train_normalized, transpose_indices)
+    X_val_normalized   = np.transpose(X_val_normalized,   transpose_indices)
+    X_test_normalized  = np.transpose(X_test_normalized,  transpose_indices)
+    model = ml_utils.create_lightning_convLSTM3D(np.shape(X_test_normalized)[1:], initial_bias)
+
 model.compile(
     optimizer='adam',
     loss='binary_crossentropy',
