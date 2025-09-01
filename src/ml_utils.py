@@ -89,9 +89,6 @@ def load_data_to_tensors_temporal(radar_files, lightning_files, radar_dir, light
         Lightning targets with shape [n_samples, n_lat, n_lon]
         Grid indexing: [lat_index, lon_index] = [North-South, East-West]
     """
-    print(radar_files)
-    print(" ")
-    print(lightning_files)
     X = []
     y = []
 
@@ -128,7 +125,32 @@ def load_data_to_tensors_temporal(radar_files, lightning_files, radar_dir, light
 
     return np.array(X), np.array(y)
 
+
+def get_shuffled_time_splits(radar_dir, lightning_dir, n_timesteps, train_ratio=0.7):
     
+    radar_files = sorted([f for f in os.listdir(radar_dir) if f.endswith('.h5')])
+    samples = []
+
+    for file in radar_files:
+        path = os.path.join(radar_dir, file)
+        with h5py.File(path, 'r') as radar_h5:
+            timestamps = sorted(radar_h5.keys())
+            for timestamp in timestamps:
+                date = file[-13:-3]
+                sample = (date, timestamp)
+                samples.append(sample)
+
+    grouped_samples = []
+
+    for i in range(len(samples) - n_timesteps + 1):
+        group = samples[i:i+n_timesteps]
+
+        if all([sample[0]==group[0][0] for sample in group]):
+            grouped_samples.append(group)
+
+    print(grouped_samples[0])
+    return None, None, None, None, None, None
+
 
 def create_lightning_cnn(input_shape=(10, 10, 1, 4), initial_bias=None):
 
