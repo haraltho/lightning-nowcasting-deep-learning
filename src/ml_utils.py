@@ -89,7 +89,9 @@ def load_data_to_tensors_temporal(radar_files, lightning_files, radar_dir, light
         Lightning targets with shape [n_samples, n_lat, n_lon]
         Grid indexing: [lat_index, lon_index] = [North-South, East-West]
     """
-
+    print(radar_files)
+    print(" ")
+    print(lightning_files)
     X = []
     y = []
 
@@ -265,7 +267,7 @@ def visualize_results(X_test, y_test, y_pred, dir):
     for i in range(n_samples):
         fig, axes = plt.subplots(1, 3, figsize=(15, 5))
 
-        im1 = axes[0].imshow(X_test[i,:,:,0,0], cmap="seismic", vmin=-60, vmax=60)
+        im1 = axes[0].imshow(X_test[i,0,:,:,0,0], cmap="seismic", vmin=-60, vmax=60)
         axes[0].set_title('Radar dBZ')
         plt.colorbar(im1, ax=axes[0], shrink=0.8)
 
@@ -276,7 +278,7 @@ def visualize_results(X_test, y_test, y_pred, dir):
         axes[2].set_title('Predicted Lightning')
 
         plt.tight_layout()
-        plt.savefig(f"{output_dir}prediction_{i}.png", dpi=150, bbox_inches='tight')
+        plt.savefig(f"{output_dir}prediction_{str(i).zfill(4)}.png", dpi=150, bbox_inches='tight')
         plt.close()
 
 
@@ -311,3 +313,21 @@ def normalize_and_preprocess(X, means, stdevs, n_param):
     X[~mask] = 0
 
     return X, mask
+
+
+def visualize_timeline(y_test, y_pred, run_dir):
+
+    output_dir = run_dir + "results/"
+    os.makedirs(output_dir, exist_ok=True)
+
+    lightning_true = np.sum(y_test, axis=(1,2))
+    lightning_pred = np.sum(y_pred, axis=(1,2))
+
+    fig, axes = plt.subplots(1,1, figsize=(15,5))
+    axes.plot(lightning_true, label="true")
+    axes.plot(lightning_pred, label="predicted")
+    axes.set_xlabel("sample")
+    axes.set_ylabel("number of lightnings in grid")
+    axes.legend()
+    fig.savefig(f"{output_dir}time_correlation.png", dpi=150, bbox_inches="tight")
+
