@@ -4,6 +4,7 @@ import numpy as np
 import tensorflow as tf
 import matplotlib.pyplot as plt
 import sys
+import random
 
 
 def get_file_splits(radar_dir, lightning_dir, train_ratio=0.7):
@@ -126,7 +127,40 @@ def load_data_to_tensors_temporal(radar_files, lightning_files, radar_dir, light
     return np.array(X), np.array(y)
 
 
-def get_shuffled_time_splits(radar_dir, lightning_dir, n_timesteps, train_ratio=0.7):
+def get_shuffled_time_splits(radar_dir, n_timesteps, train_ratio=0.7):
+    """
+    Create shuffled temporal data splits.
+    
+    Groups consecutive timesteps into sequences, extracts consecutive validation 
+    samples from a random position, then shuffles remaining sequences for 
+    train/test splits. This approach preserves temporal structure within 
+    sequences.
+    
+    Parameters
+    ----------
+    radar_dir : str
+        Directory containing radar HDF5 files
+    n_timesteps : int
+        Number of consecutive timesteps per sequence (e.g., 6)
+    train_ratio : float, default=0.7
+        Proportion of data for training. Remaining data split equally 
+        between validation and test sets.
+        
+    Returns
+    -------
+    train_groups : list
+        List of training sequences
+    val_groups : list  
+        List of validation sequences
+    test_groups : list
+        List of test sequences
+        
+    Notes
+    -----
+    - Only creates sequences within the same day (no cross-day sequences)
+    - Validation set is consecutive samples for temporal generalization testing
+    - Train and test sets are shuffled to ensure representative sampling
+    """
     
     radar_files = sorted([f for f in os.listdir(radar_dir) if f.endswith('.h5')])
     samples = []
@@ -148,8 +182,24 @@ def get_shuffled_time_splits(radar_dir, lightning_dir, n_timesteps, train_ratio=
         if all([sample[0]==group[0][0] for sample in group]):
             grouped_samples.append(group)
 
-    print(grouped_samples[0])
-    return None, None, None, None, None, None
+    n_grouped_samples = len(grouped_samples)
+    val_ratio  = (1-train_ratio)/2
+    test_ratio = (1-train_ratio)/2
+    n_val  = int(val_ratio  * n_grouped_samples)
+    n_test = int(test_ratio * n_grouped_samples)
+    n_train = n_grouped_samples - n_val - n_test
+
+    # Extract consecutive validation samples from a random position
+    val_start = np.random.randint(0, n_grouped_samples - n_val)
+    val_groups = grouped_samples[val_start:val_start+n_val]
+    del grouped_samples[val_start:val_start+n_val]
+
+    # Shuffle remaining samples and group validation and test samples
+    np.random.shuffle(grouped_samples)
+    test_groups = grouped_samples[:n_test]
+    train_groups = grouped_samples[n_test:]
+
+    return train_groups, val_groups, test_groups
 
 
 def create_lightning_cnn(input_shape=(10, 10, 1, 4), initial_bias=None):
