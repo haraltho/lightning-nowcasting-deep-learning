@@ -165,6 +165,7 @@ def get_shuffled_time_splits(radar_dir, n_timesteps, train_ratio=0.7):
     radar_files = sorted([f for f in os.listdir(radar_dir) if f.endswith('.h5')])
     samples = []
 
+    # Find all time samples
     for file in radar_files:
         path = os.path.join(radar_dir, file)
         with h5py.File(path, 'r') as radar_h5:
@@ -174,14 +175,15 @@ def get_shuffled_time_splits(radar_dir, n_timesteps, train_ratio=0.7):
                 sample = (date, timestamp)
                 samples.append(sample)
 
+    # Group time samples
     grouped_samples = []
-
     for i in range(len(samples) - n_timesteps + 1):
         group = samples[i:i+n_timesteps]
 
         if all([sample[0]==group[0][0] for sample in group]):
             grouped_samples.append(group)
 
+    # Define split sizes
     n_grouped_samples = len(grouped_samples)
     val_ratio  = (1-train_ratio)/2
     test_ratio = (1-train_ratio)/2
@@ -200,6 +202,83 @@ def get_shuffled_time_splits(radar_dir, n_timesteps, train_ratio=0.7):
     train_groups = grouped_samples[n_test:]
 
     return train_groups, val_groups, test_groups
+
+
+def load_shuffled_data_to_tensors(samples, radar_dir, lightning_dir, n_altitudes, parameters, leadtime, lightning_type, n_timesteps):
+    """
+    Load grouped temporal samples into training tensors for ConvLSTM models.
+    
+    Loads radar and lightning data for grouped temporal sequences, creating
+    4D radar tensors (time, lat, lon, altitude, parameters) and 2D lightning
+    targets based on the final timestamp in each sequence.
+    
+    Parameters
+    ----------
+    samples : list
+        List of temporal sequences from get_shuffled_time_splits().
+        Each sequence contains n_timesteps tuples of (date, timestamp).
+    radar_dir : str
+        Directory containing radar feature HDF5 files
+    lightning_dir : str  
+        Directory containing lightning target HDF5 files
+    n_altitudes : int
+        Number of altitude levels to include from radar data
+    parameters : list of str
+        Radar parameters to load (e.g., ['dBZ', 'ZDR', 'KDP', 'RhoHV'])
+    leadtime : int
+        Lightning prediction lead time in minutes
+    lightning_type : str
+        Type of lightning to predict ('total', 'cloud_to_ground', 'intracloud')
+    n_timesteps : int
+        Number of timesteps per sequence (should match input sequences)
+        
+    Returns
+    -------
+    X : numpy.ndarray
+        Radar features with shape [n_samples, n_timesteps, n_lat, n_lon, n_altitudes, n_parameters]
+    y : numpy.ndarray
+        Lightning targets with shape [n_samples, n_lat, n_lon]
+        
+    Notes
+    -----
+    Uses the last timestamp in each sequence as reference time for lightning prediction.
+    """
+
+
+    X = []
+    y = []
+    
+    for sample_group in samples:
+        date = sample_group[0][0]
+        radar_file     = os.path.join(radar_dir,     f"features_{date}.h5")
+        lightning_file = os.path.join(lightning_dir, f"targets_{date}.h5")
+
+        with h5py.File(radar_file, 'r') as radar_h5:
+            with h5py.File(lightning_file, 'r') as lightning_h5:
+
+                # Radar data
+                temporal_sequence = []
+                for sample in sample_group:
+                    timestamp = sample[1]
+                    radar_params = []
+                    for param in parameters:
+                        param_data = radar_h5[timestamp][param][:, :, :n_altitudes]
+                        radar_params.append(param_data)
+                    radar_params = np.stack(radar_params, axis=-1)
+
+                    temporal_sequence.append(radar_params)
+
+                temporal_sample = np.stack(temporal_sequence, axis=0)
+                X.append(temporal_sample)
+
+                # Lightning data
+                leadtime_group = f"lightning_{leadtime}min_leadtime"
+                timestamp = [sample[1] for sample in sample_group][-1] # Use last timestamp as reference time for lightning prediction
+                lightning_sample = lightning_h5[leadtime_group][timestamp][lightning_type][:]
+                y.append(lightning_sample)
+
+
+    return np.array(X), np.array(y)
 
 
 def create_lightning_cnn(input_shape=(10, 10, 1, 4), initial_bias=None):

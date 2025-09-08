@@ -49,7 +49,12 @@ model_type    = "convlstm2d" # "convlstm2d" or "convlstm3d"
 # Step 1: Split data into training days, validation days and test days
 print("\nSplitting data into training and test sets...")
 train_samples, validation_samples, test_samples = ml_utils.get_shuffled_time_splits(radar_dir, n_timesteps)
+
+# Step 2: Load h5 file and return tensors
+print("\nLoading data into tensors...")
+X_train, y_train = ml_utils.load_shuffled_data_to_tensors(train_samples, radar_dir, lightning_dir, n_altitudes, parameters, leadtime, lightning_type, n_timesteps)
 sys.exit("after loading into tensors")
+
 
 # Convert targets to binary
 y_train_binary = (y_train>0).astype(float)
