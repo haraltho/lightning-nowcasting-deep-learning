@@ -482,3 +482,23 @@ def visualize_timeline(y_test, y_pred, run_dir):
     axes.legend()
     fig.savefig(f"{output_dir}time_correlation.png", dpi=150, bbox_inches="tight")
 
+
+def focal_loss(gamma=2., alpha=0.25):
+    def focal_loss_fixed(y_true, y_pred):
+        # Epsilon for numerical stability so you never get log(0) or log(1)
+        epsilon = tf.keras.backend.epsilon()
+        y_pred = tf.clip_by_value(y_pred, epsilon, 1. - epsilon) # value below epsilon becomes epsilon, above 1-epsilon becomes 1-epsilon
+
+        # FL(p_t) = -alpha_t * (1 - p_t)^gamma * log(p_t)
+
+        # Probability for the true class (per pixel)
+        p_t = tf.where(tf.equal(y_true, 1), y_pred, 1 - y_pred)
+
+        # Class weight (alpha for positives, 1-alpha for negatives)
+        alpha_t = tf.where(tf.equal(y_true, 1), alpha, 1-alpha)
+
+        focal_weight = alpha_t * tf.pow(1. - p_t, gamma)
+        loss = -focal_weight * tf.math.log(p_t)
+
+        return tf.reduce_mean(loss)
+    return focal_loss_fixed

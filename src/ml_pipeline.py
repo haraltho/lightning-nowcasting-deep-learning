@@ -52,8 +52,9 @@ train_samples, validation_samples, test_samples = ml_utils.get_shuffled_time_spl
 
 # Step 2: Load h5 file and return tensors
 print("\nLoading data into tensors...")
-X_train, y_train = ml_utils.load_shuffled_data_to_tensors(train_samples, radar_dir, lightning_dir, n_altitudes, parameters, leadtime, lightning_type, n_timesteps)
-sys.exit("after loading into tensors")
+X_train, y_train = ml_utils.load_shuffled_data_to_tensors(train_samples,      radar_dir, lightning_dir, n_altitudes, parameters, leadtime, lightning_type, n_timesteps)
+X_val,   y_val   = ml_utils.load_shuffled_data_to_tensors(validation_samples, radar_dir, lightning_dir, n_altitudes, parameters, leadtime, lightning_type, n_timesteps)
+X_test,  y_test  = ml_utils.load_shuffled_data_to_tensors(test_samples,       radar_dir, lightning_dir, n_altitudes, parameters, leadtime, lightning_type, n_timesteps)
 
 
 # Convert targets to binary
@@ -109,6 +110,7 @@ elif model_type=="convlstm3d":
 model.compile(
     optimizer='adam',
     loss='binary_crossentropy',
+    # loss=ml_utils.focal_loss(gamma=2.0, alpha=0.25),
     metrics=['precision', 'recall']
 )
 
