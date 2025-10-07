@@ -252,7 +252,10 @@ def k_nearest_neighbors_anisotropic(x, y, z, values, grid, k):
     distances, indices = tree.query(grid_points, k=k)
 
     # Initialize result array with NaNs
-    interpolated = np.full(len(grid_points), np.nan)
+    interpolated_mean = np.full(len(grid_points), np.nan)
+    interpolated_std  = np.full(len(grid_points), np.nan)
+    interpolated_max  = np.full(len(grid_points), np.nan)
+
 
     # Loop through each grid point (voxel)
     for i in range(len(grid_points)):
@@ -264,12 +267,17 @@ def k_nearest_neighbors_anisotropic(x, y, z, values, grid, k):
 
         if np.any(within_mask):
             valid_values = dbzh_valid[neighbor_idxs[within_mask]]
-            interpolated[i] = np.mean(valid_values)  
+            interpolated_mean[i] = np.mean(valid_values)  
+            interpolated_std[i]  = np.std(valid_values)  
+            interpolated_max[i]  = np.max(valid_values)  
 
     # Reshape to grid
-    interpolated_final = interpolated.reshape(x_grid.shape)
+    interpolated_mean_final = interpolated_mean.reshape(x_grid.shape)
+    interpolated_std_final  = interpolated_std.reshape(x_grid.shape)
+    interpolated_max_final  = interpolated_max.reshape(x_grid.shape)
 
-    return interpolated_final
+
+    return interpolated_mean_final, interpolated_std_final, interpolated_max_final
 
 
 def save_radar_features(daily_features, output_dir, date_label, grid):

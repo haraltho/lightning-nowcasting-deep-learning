@@ -57,10 +57,12 @@ def create_radar_features(time_segments_file, grid, time_step, data_dir, output_
 
                 # Interpolate to grid
                 # values_interpolated = radar_utils.interpolate_to_grid(x, y, z, values, grid)
-                values_interpolated = radar_utils.k_nearest_neighbors_anisotropic(x, y, z, values,
-                                                                                  grid,
-                                                                                  k=100)
-                time_features[param] = values_interpolated
+                values_interpolated_mean, values_interpolated_std, values_interpolated_max = radar_utils.k_nearest_neighbors_anisotropic(x, y, z, values,
+                                                                                                                                         grid,
+                                                                                                                                         k=100)
+                time_features[param+"_mean"] = values_interpolated_mean
+                time_features[param+"_std"]  = values_interpolated_std
+                time_features[param+"_max"]  = values_interpolated_max
 
             # Store features for this time segment
             time_stamp = reference_time.strftime("%Hh%M")
