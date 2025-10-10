@@ -17,44 +17,46 @@ os.environ['PYTHONHASHSEED'] = '42'
 random.seed(42)
 
 # Configurations
-run_dir = "../data/processed_data/run_6_leadtime15/"
+run_dir = "../data/processed_data/run_8_extended/"
 radar_dir     = run_dir + "radar/"
 lightning_dir = run_dir + "lightning/"
 # parameters    = ['dBZ', 'ZDR', 'KDP', 'RhoHV']
-parameters    = ['dBZ']
+parameters    = ['RhoHV_mean']
 n_altitudes   = 20  # Using only lowest altitude for simplicity
 leadtime      = 15
 lightning_type = "total" # "total" or "cloud_to_ground" or "intracloud"
 n_timesteps = 6  # Number of timesteps for convLSTM
-model_type    = "convlstm2d" # "convlstm2d" or "convlstm3d"
-
-# Step 1: Split data into training days, validation days and test days
-# print("\nSplitting data into training and test sets...")
-# train_radar, train_lightning, validation_radar, validation_lightning, test_radar, test_lightning = ml_utils.get_file_splits(radar_dir, lightning_dir)
-
-
-# Step 2: Load h5 file and return tensors
-# print("\nLoading data into tensors...")
-# # shape(X) = [n_samples, n_timesteps, n_lat, n_lon, n_altitudes, n_parameters]
-# X_train, y_train = ml_utils.load_data_to_tensors_temporal(train_radar, train_lightning, radar_dir, 
-#                                                  lightning_dir, n_altitudes, parameters, 
-#                                                  leadtime, lightning_type, n_timesteps)
-# X_val,   y_val   = ml_utils.load_data_to_tensors_temporal(validation_radar, validation_lightning, 
-#                                                  radar_dir, lightning_dir, n_altitudes, parameters, leadtime, lightning_type, n_timesteps)
-# X_test , y_test  = ml_utils.load_data_to_tensors_temporal(test_radar,  test_lightning,  radar_dir, 
-#                                                  lightning_dir, n_altitudes, parameters, 
-#                                                  leadtime, lightning_type, n_timesteps)
-
+model_type    = "convlstm3d" # "convlstm2d" or "convlstm3d"
 
 # Step 1: Split data into training days, validation days and test days
 print("\nSplitting data into training and test sets...")
-train_samples, validation_samples, test_samples = ml_utils.get_shuffled_time_splits(radar_dir, n_timesteps)
+# train_radar, train_lightning, validation_radar, validation_lightning, test_radar, test_lightning = ml_utils.get_file_splits(radar_dir, lightning_dir)
+train_radar, train_lightning, validation_radar, validation_lightning, test_radar, test_lightning = ml_utils.get_file_splits_shuffled_by_day(radar_dir, lightning_dir)
+
 
 # Step 2: Load h5 file and return tensors
 print("\nLoading data into tensors...")
-X_train, y_train = ml_utils.load_shuffled_data_to_tensors(train_samples,      radar_dir, lightning_dir, n_altitudes, parameters, leadtime, lightning_type, n_timesteps)
-X_val,   y_val   = ml_utils.load_shuffled_data_to_tensors(validation_samples, radar_dir, lightning_dir, n_altitudes, parameters, leadtime, lightning_type, n_timesteps)
-X_test,  y_test  = ml_utils.load_shuffled_data_to_tensors(test_samples,       radar_dir, lightning_dir, n_altitudes, parameters, leadtime, lightning_type, n_timesteps)
+# shape(X) = [n_samples, n_timesteps, n_lat, n_lon, n_altitudes, n_parameters]
+X_train, y_train = ml_utils.load_data_to_tensors_temporal(train_radar, train_lightning, radar_dir, 
+                                                 lightning_dir, n_altitudes, parameters, 
+                                                 leadtime, lightning_type, n_timesteps)
+X_val,   y_val   = ml_utils.load_data_to_tensors_temporal(validation_radar, validation_lightning, 
+                                                 radar_dir, lightning_dir, n_altitudes, parameters, leadtime, lightning_type, n_timesteps)
+X_test , y_test  = ml_utils.load_data_to_tensors_temporal(test_radar,  test_lightning,  radar_dir, 
+                                                 lightning_dir, n_altitudes, parameters, 
+                                                 leadtime, lightning_type, n_timesteps)
+
+
+# # Step 1: Split data into training days, validation days and test days
+# print("\nSplitting data into training and test sets...")
+# train_samples, validation_samples, test_samples = ml_utils.get_shuffled_time_splits(radar_dir, n_timesteps)
+# sys.exit("asdf")
+
+# # Step 2: Load h5 file and return tensors
+# print("\nLoading data into tensors...")
+# X_train, y_train = ml_utils.load_shuffled_data_to_tensors(train_samples,      radar_dir, lightning_dir, n_altitudes, parameters, leadtime, lightning_type, n_timesteps)
+# X_val,   y_val   = ml_utils.load_shuffled_data_to_tensors(validation_samples, radar_dir, lightning_dir, n_altitudes, parameters, leadtime, lightning_type, n_timesteps)
+# X_test,  y_test  = ml_utils.load_shuffled_data_to_tensors(test_samples,       radar_dir, lightning_dir, n_altitudes, parameters, leadtime, lightning_type, n_timesteps)
 
 
 # Convert targets to binary
@@ -65,6 +67,25 @@ y_test_binary  = (y_test>0).astype(float)
 print(f"Lightning fraction in train: {np.mean(y_train_binary)*100:.2f}%")
 print(f"Lightning fraction in val:   {np.mean(y_val_binary)*100:.2f}%")
 print(f"Lightning fraction in test:  {np.mean(y_test_binary)*100:.2f}%")
+
+
+import numpy as np
+# X shape: (n_samples, n_timesteps, n_lat, n_lon, n_alt, n_param)
+
+def stats_first_timestep(X):
+    vals = X[:,0,...]                          # (n_samples, n_lat, n_lon, n_alt, n_param)
+    vals = vals.reshape(-1, vals.shape[-1])    # flatten spatial dims
+    return np.nanmean(vals, axis=0), np.nanstd(vals, axis=0)
+
+def stats_all_timesteps(X):
+    vals = X.reshape(-1, X.shape[-1])          # flatten everything but param
+    return np.nanmean(vals, axis=0), np.nanstd(vals, axis=0)
+
+m1,s1 = stats_first_timestep(X_train)
+m2,s2 = stats_all_timesteps(X_train)
+
+print("max abs diff means:", np.max(np.abs(m1-m2)))
+print("max rel diff stds:", np.max(np.abs(s1-s2)/ (s2 + 1e-12)))
 
 
 # Normalizing data: Fill nan's, produce mask

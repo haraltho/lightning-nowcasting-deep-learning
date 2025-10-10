@@ -28,6 +28,49 @@ def get_file_splits(radar_dir, lightning_dir, train_ratio=0.7):
     return train_radar, train_lightning, validation_radar, validation_lightning, test_radar, test_lightning
 
 
+def get_file_splits_shuffled_by_day(radar_dir, lightning_dir, train_ratio=0.7):
+    
+    radar_files = sorted([f for f in os.listdir(radar_dir) if f.endswith('.h5')])
+    lightning_files = sorted([f for f in os.listdir(lightning_dir) if f.endswith('.h5')])
+
+    n_files = len(radar_files)
+    n_train = int(n_files * train_ratio)
+    n_val = int((n_files - n_train) / 2)
+    n_test = n_files - n_train - n_val
+
+    # Make sure that radar and lightning files correspond. Extract date from lightning and radar files, compute intersection
+    def extract_date(filename):
+        return filename.split('_')[-1].replace('.h5', '')
+    
+    radar_dates     = {extract_date(f): f for f in radar_files}
+    lightning_dates = {extract_date(f): f for f in lightning_files}
+    common_dates = radar_dates.keys() & lightning_dates.keys()
+    assert len(common_dates) > 0, "No common dates found between radar and lightning files"
+
+    radar_files =     [radar_dates[date] for date in sorted(common_dates)]
+    lightning_files = [lightning_dates[date] for date in sorted(common_dates)]
+
+    # Extract consecutive validation samples from a random position
+    val_start = np.random.randint(0, n_files - n_val)
+    lightning_val = lightning_files[val_start:val_start+n_val]
+    radar_val = radar_files[val_start:val_start+n_val]
+    del lightning_files[val_start:val_start+n_val]
+    del radar_files[val_start:val_start+n_val]
+
+    # Shuffle remaining samples and extract train and test samples
+    combined = list(zip(radar_files, lightning_files))
+    random.shuffle(combined)
+    radar_files, lightning_files = zip(*combined)
+    radar_files = list(radar_files)
+    lightning_files = list(lightning_files)
+    radar_train = radar_files[:n_train]
+    lightning_train = lightning_files[:n_train]
+    radar_test = radar_files[n_train:]
+    lightning_test = lightning_files[n_train:]
+
+    return radar_train, lightning_train, radar_val, lightning_val, radar_test, lightning_test
+
+
 def load_data_to_tensors(radar_files, lightning_files, radar_dir, lightning_dir, n_altitudes, parameters, leadtime, lightning_type):
     """
     Load radar and lightning data into tensors for ML training.
@@ -174,6 +217,7 @@ def get_shuffled_time_splits(radar_dir, n_timesteps, train_ratio=0.7):
                 date = file[-13:-3]
                 sample = (date, timestamp)
                 samples.append(sample)
+
 
     # Group time samples
     grouped_samples = []
