@@ -11,22 +11,22 @@ import ml_utils
 importlib.reload(ml_utils)
 
 # Set seed number for reproducibility
-tf.random.set_seed(42)
-np.random.seed(42)
-os.environ['PYTHONHASHSEED'] = '42'
-random.seed(42)
+tf.random.set_seed(21)
+np.random.seed(21)
+os.environ['PYTHONHASHSEED'] = '21'
+random.seed(21)
 
 # Configurations
 run_dir = "../data/processed_data/run_8_extended/"
 radar_dir     = run_dir + "radar/"
 lightning_dir = run_dir + "lightning/"
 # parameters    = ['dBZ', 'ZDR', 'KDP', 'RhoHV']
-parameters    = ['RhoHV_mean']
+parameters    = ['dBZ_max']
 n_altitudes   = 20  # Using only lowest altitude for simplicity
 leadtime      = 15
 lightning_type = "total" # "total" or "cloud_to_ground" or "intracloud"
 n_timesteps = 6  # Number of timesteps for convLSTM
-model_type    = "convlstm3d" # "convlstm2d" or "convlstm3d"
+model_type    = "convlstm2d" # "convlstm2d" or "convlstm3d"
 
 # Step 1: Split data into training days, validation days and test days
 print("\nSplitting data into training and test sets...")
@@ -157,25 +157,26 @@ print("MODEL EVALUATION")
 print("\n" + "="*50)
 
 # Get predictions
-y_pred = model.predict(X_test_normalized)
+y_test_pred = model.predict(X_test_normalized)
+y_val_pred  = model.predict(X_val_normalized)
 
 # Predictions give probablities. Convert back to binary by exploring different thresholds.
-threshold_csi = ml_utils.evaluate_threshold(y_test_binary, y_pred)
+threshold_csi = ml_utils.evaluate_threshold(y_val_binary, y_val_pred)
 
 # Find the threshold with highest CSI
 best_threshold, best_csi = max(threshold_csi, key=lambda x: x[1])
 print(f"\nBest threshold: {best_threshold:.4f}")
-print(f"Best CSI: {best_csi:.4f}")
+print(f"Best validation CSI: {best_csi:.4f}")
 
 # Make final binary predictions
-y_pred_binary = (y_pred > best_threshold).astype(int)
+y_pred_binary = (y_test_pred > best_threshold).astype(int)
 
 # Generate detailed output
 ml_utils.print_detailed_results(y_test_binary, y_pred_binary)
 
 # Calculate threshold-independent metrics
-auc_pr  = average_precision_score(y_test_binary.flatten(), y_pred.flatten())
-auc_roc = roc_auc_score(y_test_binary.flatten(), y_pred.flatten())
+auc_pr  = average_precision_score(y_test_binary.flatten(), y_test_pred.flatten())
+auc_roc = roc_auc_score(y_test_binary.flatten(), y_test_pred.flatten())
 
 print(f"\nAUC-PR: {auc_pr:.4f}")
 print(f"AUC-ROC: {auc_roc:.4f}")
