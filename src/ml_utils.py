@@ -325,9 +325,12 @@ def load_shuffled_data_to_tensors(samples, radar_dir, lightning_dir, n_altitudes
     return np.array(X), np.array(y)
 
 
-def create_lightning_cnn(input_shape=(10, 10, 1, 4), initial_bias=None):
-
-    n_channels = input_shape[2] * input_shape[3] # n_elevations * n_parameters
+def create_lightning_cnn(input_shape, initial_bias=None):
+    """
+    input_shape = (H, W, Z, C) # one timestep: height, width, altitudes, parameters
+    """
+    H, W, Z, C = input_shape
+    n_channels = Z * C
 
     if initial_bias is not None:
         bias_initializer = tf.keras.initializers.Constant(initial_bias) 
@@ -336,12 +339,12 @@ def create_lightning_cnn(input_shape=(10, 10, 1, 4), initial_bias=None):
     
     model = tf.keras.Sequential([
         tf.keras.layers.Input(shape=input_shape),
-        tf.keras.layers.Reshape((10, 10, n_channels)),  # Remove altitude dimension
+        tf.keras.layers.Reshape((H, W, n_channels)),  # Remove altitude dimension
         tf.keras.layers.Conv2D(32, (3, 3), activation='relu',    padding='same'),
         tf.keras.layers.Conv2D(16, (3, 3), activation='relu',    padding='same'),
         tf.keras.layers.Conv2D(1, (1, 1),  activation='sigmoid', padding='same', 
                                bias_initializer=bias_initializer),  # sigmoid for binary
-        tf.keras.layers.Reshape((10, 10))
+        tf.keras.layers.Reshape((H, W))
     ])
     return model
 

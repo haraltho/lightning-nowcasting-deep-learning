@@ -13,7 +13,7 @@ import ml_utils
 importlib.reload(ml_utils)
 
 # Set seed number for reproducibility
-seeds = [0, 1, 2, ]#3, 4, 5, 6, 7, 8, 9]
+seeds = [0, 1, 2, 3, 4, 5, 6, 7, 8, 9]
 def set_seed(seed):
     tf.random.set_seed(seed)
     np.random.seed(seed)
@@ -21,16 +21,16 @@ def set_seed(seed):
     random.seed(seed)
 
 # Configurations
-run_dir = "../data/processed_data/run_9_leadtime0/"
+run_dir = "../data/processed_data/run_8_extended/"
 radar_dir     = run_dir + "radar/"
 lightning_dir = run_dir + "lightning/"
 # parameters    = ['dBZ', 'ZDR', 'KDP', 'RhoHV']
 parameters    = ['dBZ_max']  # Using only 4 parameters for simplicity
 n_altitudes   = 20  # Using only lowest altitude for simplicity
-leadtime      = 0
+leadtime      = 15
 lightning_type = "total" # "total" or "cloud_to_ground" or "intracloud"
 n_timesteps = 6  # Number of timesteps for convLSTM
-model_type    = "convlstm3d" # "convlstm2d" or "convlstm3d"
+model_type    = "cnn2d" # "convlstm2d", "convlstm3d" or "cnn2d"
 
 csi_val        = []
 threshold_val  = []
@@ -45,7 +45,6 @@ for seed in seeds:
 
     # Step 1: Split data into training days, validation days and test days
     print("\nSplitting data into training and test sets...")
-    # train_radar, train_lightning, validation_radar, validation_lightning, test_radar, test_lightning = ml_utils.get_file_splits(radar_dir, lightning_dir)
     train_radar, train_lightning, validation_radar, validation_lightning, test_radar, test_lightning = ml_utils.get_file_splits_shuffled_by_day(radar_dir, lightning_dir)
 
 
@@ -60,18 +59,6 @@ for seed in seeds:
     X_test , y_test  = ml_utils.load_data_to_tensors_temporal(test_radar,  test_lightning,  radar_dir, 
                                                     lightning_dir, n_altitudes, parameters, 
                                                     leadtime, lightning_type, n_timesteps)
-
-
-    # # Step 1: Split data into training days, validation days and test days
-    # print("\nSplitting data into training and test sets...")
-    # train_samples, validation_samples, test_samples = ml_utils.get_shuffled_time_splits(radar_dir, n_timesteps)
-    # sys.exit("asdf")
-
-    # # Step 2: Load h5 file and return tensors
-    # print("\nLoading data into tensors...")
-    # X_train, y_train = ml_utils.load_shuffled_data_to_tensors(train_samples,      radar_dir, lightning_dir, n_altitudes, parameters, leadtime, lightning_type, n_timesteps)
-    # X_val,   y_val   = ml_utils.load_shuffled_data_to_tensors(validation_samples, radar_dir, lightning_dir, n_altitudes, parameters, leadtime, lightning_type, n_timesteps)
-    # X_test,  y_test  = ml_utils.load_shuffled_data_to_tensors(test_samples,       radar_dir, lightning_dir, n_altitudes, parameters, leadtime, lightning_type, n_timesteps)
 
 
     # Convert targets to binary
@@ -126,11 +113,16 @@ for seed in seeds:
         X_val_normalized   = np.transpose(X_val_normalized,   transpose_indices)
         X_test_normalized  = np.transpose(X_test_normalized,  transpose_indices)
         model = ml_utils.create_lightning_convLSTM3D(np.shape(X_test_normalized)[1:], initial_bias)
+    elif model_type=="cnn2d":
+        # Take the last timestep and feed it to the 2d CNN
+        X_train_normalized = X_train_normalized[:, -1, ...]
+        X_val_normalized   = X_val_normalized[:, -1, ...]
+        X_test_normalized  = X_test_normalized[:, -1, ...]
+        model = ml_utils.create_lightning_cnn((np.shape(X_test_normalized)[1:]), initial_bias)
 
     model.compile(
         optimizer='adam',
         loss='binary_crossentropy',
-        # loss=ml_utils.focal_loss(gamma=2.0, alpha=0.25),
         metrics=['precision', 'recall']
     )
 
