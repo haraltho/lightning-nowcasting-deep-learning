@@ -7,18 +7,18 @@ import sys
 import shutil
 
 # Configurations
-run_dir = "../data/processed_data/run_6_leadtime15/"
+run_dir = "../data/processed_data/run_9_leadtime0/"
 os.makedirs(run_dir, exist_ok=True)
 lightning_output_dir = run_dir + "lightning/"
 radar_output_dir     = run_dir + "radar/"
-radar_data_dir       = loc_vars.RADAR_FILE_DIR
+# radar_data_dir       = loc_vars.RADAR_FILE_DIR
 storms_filename = "../data/config/storm_periods.csv"
 shutil.copy(storms_filename, run_dir)
 radar = RADARS["hurum"]
 parameters = ["dBZ", "ZDR", "KDP", "RhoHV"]
-lead_time   = 15 # minutes; time to predict in the future
+lead_time   = 0 # minutes; time to predict in the future
 time_step   = 10 # minutes; length of time segments (defined by radar sweeps)
-time_window = 45 # minutes; length of time window for lightning aggregation
+time_window = 30 # minutes; length of time window for lightning aggregation
 
 print("\n== Lightning Nowcasting Pipeline ==")
 print(f"\nProcessing radar: {radar['label']}")

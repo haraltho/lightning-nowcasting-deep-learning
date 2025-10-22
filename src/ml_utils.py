@@ -451,6 +451,8 @@ def print_detailed_results(y_true, y_pred):
     print(f"  Recall: {recall*100:.2f}%\t How many lightning events were caught")
     print(f"  Accuracy: {accuracy*100:.2f}%")
 
+    return csi, precision, recall, accuracy
+
 
 def visualize_results(X_test, y_test, y_pred, dir):
 
