@@ -21,16 +21,16 @@ def set_seed(seed):
     random.seed(seed)
 
 # Configurations
-run_dir = "../data/processed_data/run_8_extended/"
+run_dir = "../data/processed_data/run_9_leadtime0/"
 radar_dir     = run_dir + "radar/"
 lightning_dir = run_dir + "lightning/"
 # parameters    = ['dBZ', 'ZDR', 'KDP', 'RhoHV']
-parameters    = ['dBZ_max']  # Using only 4 parameters for simplicity
+parameters    = ['RhoHV_mean']  # Using only 4 parameters for simplicity
 n_altitudes   = 20  # Using only lowest altitude for simplicity
-leadtime      = 15
+leadtime      = 0
 lightning_type = "total" # "total" or "cloud_to_ground" or "intracloud"
 n_timesteps = 6  # Number of timesteps for convLSTM
-model_type    = "cnn2d" # "convlstm2d", "convlstm3d" or "cnn2d"
+model_type    = "convlstm2d" # "convlstm2d", "convlstm3d" or "cnn2d"
 
 csi_val        = []
 threshold_val  = []
@@ -40,6 +40,7 @@ recall_test    = []
 accuracy_test  = []
 auc_pr_test    = []
 auc_roc_test   = []
+
 for seed in seeds:
     set_seed(seed)
 
@@ -61,14 +62,15 @@ for seed in seeds:
                                                     leadtime, lightning_type, n_timesteps)
 
 
-    # Convert targets to binary
-    y_train_binary = (y_train>0).astype(float)
-    y_val_binary   = (y_val>0).astype(float)
-    y_test_binary  = (y_test>0).astype(float)
+    # Transform targets to log1p
+    y_train_reg = np.log1p(y_train)
+    y_val_reg   = np.log1p(y_val)
+    y_test_reg  = np.log1p(y_test)
 
-    print(f"Lightning fraction in train: {np.mean(y_train_binary)*100:.2f}%")
-    print(f"Lightning fraction in val:   {np.mean(y_val_binary)*100:.2f}%")
-    print(f"Lightning fraction in test:  {np.mean(y_test_binary)*100:.2f}%")
+    # For CSI calculation
+    y_train_binary = (y_train > 0).astype(int)
+    y_val_binary   = (y_val > 0).astype(int)
+    y_test_binary  = (y_test > 0).astype(int)
 
 
     # X shape: (n_samples, n_timesteps, n_lat, n_lon, n_alt, n_param)
@@ -90,18 +92,10 @@ for seed in seeds:
     print(np.nanstd(X_train_normalized,  axis=(0,1,2,3,4)))  
 
 
-    # Step 4: Deal with class imbalance
-    neg_count = np.sum(y_train_binary == 0)
-    pos_count = np.sum(y_train_binary == 1)
-    initial_bias = np.log(pos_count / neg_count)
-    print(f"\nInitial class imbalance: {neg_count} negatives, {pos_count} positives")
-    print(f"Initial bias for loss function: {initial_bias:.4f}\n")
-
-
     # Step 5: Create a simple CNN model
 
     if model_type=="convlstm2d":
-        model = ml_utils.create_lightning_convLSTM2D(np.shape(X_test_normalized)[1:], initial_bias)
+        model = ml_utils.create_lightning_convLSTM2D(np.shape(X_test_normalized)[1:])
     elif model_type=="convlstm3d":
         # Transpose to from
         # [n_samples, n_timesteps, n_lat, n_lon, n_altitudes, n_parameters]
@@ -112,34 +106,29 @@ for seed in seeds:
         X_train_normalized = np.transpose(X_train_normalized, transpose_indices)
         X_val_normalized   = np.transpose(X_val_normalized,   transpose_indices)
         X_test_normalized  = np.transpose(X_test_normalized,  transpose_indices)
-        model = ml_utils.create_lightning_convLSTM3D(np.shape(X_test_normalized)[1:], initial_bias)
+        model = ml_utils.create_lightning_convLSTM3D(np.shape(X_test_normalized)[1:])
     elif model_type=="cnn2d":
         # Take the last timestep and feed it to the 2d CNN
         X_train_normalized = X_train_normalized[:, -1, ...]
         X_val_normalized   = X_val_normalized[:, -1, ...]
         X_test_normalized  = X_test_normalized[:, -1, ...]
-        model = ml_utils.create_lightning_cnn((np.shape(X_test_normalized)[1:]), initial_bias)
+        model = ml_utils.create_lightning_cnn((np.shape(X_test_normalized)[1:]))
+
 
     model.compile(
         optimizer='adam',
-        loss='binary_crossentropy',
-        metrics=['precision', 'recall']
+        loss='mae'
     )
 
-    # Step 6: Train the model
     early_stopping = tf.keras.callbacks.EarlyStopping(
-        monitor='val_loss', 
-        patience=10, 
-        restore_best_weights=True
+        monitor='val_loss', patience=10, restore_best_weights=True
     )
 
     history = model.fit(
-            X_train_normalized,
-            y_train_binary,
-            epochs=200,
-            batch_size=32,
-            validation_data=(X_val_normalized, y_val_binary),
-            callbacks=[early_stopping]
+        X_train_normalized, y_train_reg,
+        validation_data=(X_val_normalized, y_val_reg),
+        epochs=200, batch_size=32,
+        callbacks=[early_stopping]
     )
 
     # Step 7: Evaluate the model
@@ -151,8 +140,26 @@ for seed in seeds:
     y_test_pred = model.predict(X_test_normalized)
     y_val_pred  = model.predict(X_val_normalized)
 
-    # Predictions give probablities. Convert back to binary by exploring different thresholds.
-    threshold_csi = ml_utils.evaluate_threshold(y_val_binary, y_val_pred)
+    print("Predicted log range:", np.min(y_test_pred), np.max(y_test_pred))
+
+    print("y_train_reg stats:", np.min(y_train_reg), np.mean(y_train_reg), np.max(y_train_reg))
+    print("y_test_pred stats:", np.min(y_test_pred), np.mean(y_test_pred), np.max(y_test_pred))
+
+    # Convert back from log1p to counts
+    y_val_pred_clipped  = np.maximum(y_val_pred,  0.0)
+    y_test_pred_clipped = np.maximum(y_test_pred, 0.0)
+    y_val_pred_counts  = np.expm1(y_val_pred_clipped)
+    y_test_pred_counts = np.expm1(y_test_pred_clipped)
+
+    # compute metrics
+    mae  = np.mean(np.abs(y_test_reg - y_test_pred))
+    rmse = np.sqrt(np.mean((y_test_reg - y_test_pred)**2))
+
+    mae_counts  = np.mean(np.abs(y_test_pred_counts - y_test))
+    rmse_counts = np.sqrt(np.mean((y_test_pred_counts - y_test)**2))
+
+    # Convert back to binary by exploring different thresholds.
+    threshold_csi = ml_utils.evaluate_threshold(y_val, y_val_pred_counts)
 
     # Find the threshold with highest CSI
     best_threshold, best_csi = max(threshold_csi, key=lambda x: x[1])
@@ -162,18 +169,18 @@ for seed in seeds:
     print(f"Best validation CSI: {best_csi:.4f}")
 
     # Make final binary predictions
-    y_pred_binary = (y_test_pred > best_threshold).astype(int)
+    y_pred_binary = (y_test_pred_counts > best_threshold).astype(int)
 
     # Generate detailed output
-    csi, precision, recall, accuracy = ml_utils.print_detailed_results(y_test_binary, y_pred_binary)
+    csi, precision, recall, accuracy = ml_utils.print_detailed_results(y_test_reg, y_pred_binary)
     csi_test.append(csi)
     precision_test.append(precision)
     recall_test.append(recall)
     accuracy_test.append(accuracy)
 
     # Calculate threshold-independent metrics
-    auc_pr  = average_precision_score(y_test_binary.flatten(), y_test_pred.flatten())
-    auc_roc = roc_auc_score(y_test_binary.flatten(), y_test_pred.flatten())
+    auc_pr  = average_precision_score(y_test_reg.flatten(), y_test_pred.flatten())
+    auc_roc = roc_auc_score(y_test_reg.flatten(), y_test_pred.flatten())
     auc_pr_test.append(auc_pr)
     auc_roc_test.append(auc_roc)
 
@@ -221,20 +228,20 @@ summary_row = {
 }
 
 # Write results to csv file
-results_file = run_dir + "results_summary.csv"
-if os.path.exists(results_file):
-    df = pd.read_csv(results_file)
-    df = pd.concat([df, pd.DataFrame([summary_row])], ignore_index=True)
-else:
-    df = pd.DataFrame([summary_row])
-df.to_csv(results_file, index=False)
+# results_file = run_dir + "results_summary.csv"
+# if os.path.exists(results_file):
+#     df = pd.read_csv(results_file)
+#     df = pd.concat([df, pd.DataFrame([summary_row])], ignore_index=True)
+# else:
+#     df = pd.DataFrame([summary_row])
+# df.to_csv(results_file, index=False)
 
-print("\n=== SUMMARY over seeds ===")
-print(f"CSI_test: {csi_test_mean:.4f} ± {csi_test_std:.4f} | "
-      f"Prec: {precision_mean:.3f} ± {precision_std:.3f} | "
-      f"Rec: {recall_mean:.3f} ± {recall_std:.3f} | "
-      f"AUC-PR: {aupr_mean:.3f} ± {aupr_std:.3f} | "
-      f"AUC-ROC: {auroc_mean:.3f} ± {auroc_std:.3f}")
+# print("\n=== SUMMARY over seeds ===")
+# print(f"CSI_test: {csi_test_mean:.4f} ± {csi_test_std:.4f} | "
+#       f"Prec: {precision_mean:.3f} ± {precision_std:.3f} | "
+#       f"Rec: {recall_mean:.3f} ± {recall_std:.3f} | "
+#       f"AUC-PR: {aupr_mean:.3f} ± {aupr_std:.3f} | "
+#       f"AUC-ROC: {auroc_mean:.3f} ± {auroc_std:.3f}")
 
 print("\n-- FINISHED --")
 

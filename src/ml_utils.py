@@ -325,36 +325,28 @@ def load_shuffled_data_to_tensors(samples, radar_dir, lightning_dir, n_altitudes
     return np.array(X), np.array(y)
 
 
-def create_lightning_cnn(input_shape, initial_bias=None):
+def create_lightning_cnn(input_shape):
     """
     input_shape = (H, W, Z, C) # one timestep: height, width, altitudes, parameters
     """
     H, W, Z, C = input_shape
     n_channels = Z * C
 
-    if initial_bias is not None:
-        bias_initializer = tf.keras.initializers.Constant(initial_bias) 
-    else:
-        bias_initializer = 'zeros'
+
     
     model = tf.keras.Sequential([
         tf.keras.layers.Input(shape=input_shape),
         tf.keras.layers.Reshape((H, W, n_channels)),  # Remove altitude dimension
         tf.keras.layers.Conv2D(32, (3, 3), activation='relu',    padding='same'),
         tf.keras.layers.Conv2D(16, (3, 3), activation='relu',    padding='same'),
-        tf.keras.layers.Conv2D(1, (1, 1),  activation='sigmoid', padding='same', 
-                               bias_initializer=bias_initializer),  # sigmoid for binary
+        tf.keras.layers.Conv2D(1, (1, 1),  activation=None, padding='same'),  
         tf.keras.layers.Reshape((H, W))
     ])
     return model
 
 
-def create_lightning_convLSTM2D(input_shape, initial_bias):
+def create_lightning_convLSTM2D(input_shape):
 
-    if initial_bias is not None:
-        bias_initializer = tf.keras.initializers.Constant(initial_bias)
-    else:
-        bias_initializer = 'zeros'
 
 
     # Calculate number of channels
@@ -367,19 +359,16 @@ def create_lightning_convLSTM2D(input_shape, initial_bias):
         tf.keras.layers.Reshape((input_shape[0], input_shape[1], input_shape[2], n_channels)),
         tf.keras.layers.ConvLSTM2D(32, (3, 3), activation='relu', padding='same', return_sequences=False),
         tf.keras.layers.Conv2D(16, (3, 3), activation='relu', padding='same'),
-        tf.keras.layers.Conv2D(1, (1, 1), activation='sigmoid', padding='same', bias_initializer=bias_initializer),  # sigmoid for binary
+        tf.keras.layers.Conv2D(1, (1, 1), activation=None, padding='same'),  
         tf.keras.layers.Reshape((10, 10))      
     ])
 
     return model
 
 
-def create_lightning_convLSTM3D(input_shape, initial_bias):
+def create_lightning_convLSTM3D(input_shape):
 
-    if initial_bias is not None:
-        bias_initializer = tf.keras.initializers.Constant(initial_bias)
-    else:
-        bias_initializer = 'zeros'
+
 
     # ConvLSTM3D requires the data to be in the shape:
     # (time, depth, *spatial_dims, channels) = (n_timesteps, n_altitudes, n_lat, n_lon, n_parameters)
@@ -388,7 +377,7 @@ def create_lightning_convLSTM3D(input_shape, initial_bias):
         tf.keras.layers.Input(shape=input_shape),
         tf.keras.layers.ConvLSTM3D(32, (3,3,3), activation='relu', padding='same', return_sequences=False),
         tf.keras.layers.Conv3D(16, (3,3,3), activation='relu', padding='same'),
-        tf.keras.layers.Conv3D(1, (input_shape[1], 1, 1), activation='sigmoid', padding='valid', bias_initializer=bias_initializer),
+        tf.keras.layers.Conv3D(1, (input_shape[1], 1, 1), activation=None, padding='valid'),
         tf.keras.layers.Lambda(lambda x: tf.squeeze(x, axis=1)),  # Remove altitude dim
         tf.keras.layers.Reshape((input_shape[2], input_shape[3]))  # Final (lat, lon)
     ])
@@ -413,12 +402,10 @@ def calculate_csi(y_true, y_pred, threshold=0.5):
     return csi
 
 
-def evaluate_threshold(y_true, y_pred, n_thresholds=20):
+def evaluate_threshold(y_true, y_pred, n_thresholds=30):
     """Compute CSI for multiple threshold values"""
 
-    max_pred = np.max(y_pred)
-
-    thresholds = np.linspace(0.001, max_pred, n_thresholds)
+    thresholds = np.linspace(0.05, 3, n_thresholds)
 
     print('\n-- EVALUATE THRESHOLD --\nthreshold \t csi\n ' + 30*"-")
 
