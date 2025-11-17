@@ -207,6 +207,30 @@
         .abstract p {
             line-height: 1.7;
         }
+
+        body {
+            counter-reset: section;
+        }
+
+        h2 {
+            counter-reset: subsection;
+        }
+
+        h2::before {
+            counter-increment: section;
+            content: counter(section) ". ";
+        }
+
+        h3::before {
+            counter-increment: subsection;
+            content: counter(section) "." counter(subsection) " ";
+        }
+
+        /* Disable numbering for specific headings */
+        .no-number::before {
+            content: "" !important;
+            counter-increment: none !important;
+        }
     </style>
 </head>
 
@@ -214,8 +238,8 @@
     <div class="container">
         <!-- Header -->
         <div class="header">
-            <h1>Lightning Nowcasting</h1>
-            <div class="subtitle">with Polarimetric Radar</div>
+            <h1>Machine Learning for Radar-Based Lightning Nowcasting</h1>
+            <div class="subtitle">A Proof-of-Concept Study using TensorFlow</div>
             <div class="author">Analysis by Harald Thommesen</div>
         </div>
 
@@ -229,7 +253,7 @@
         </div>
 
         <div class="abstract">
-            <h2 style="text-align: center; margin-bottom: 15px;">Abstract</h2>
+            <h2 class="no-number" style="text-align: center; margin-bottom: 15px;">Abstract</h2>
             <p
                 style="font-style: italic; text-align: justify; background-color: #f8f9fa; padding: 20px; border-radius: 8px; margin: 30px 0;">
                 Lorem ipsum dolor sit amet, consectetur adipiscing elit. Suspendisse tempor aliquet purus eu tincidunt.
@@ -245,34 +269,40 @@
 
         <!-- Introduction -->
         <h2>Introduction</h2>
-        <p>asdf</p>
 
-        <h2>Data and Methods</h2>
+        <h2>Data</h2>
+        <h3>Lightning</h3>
+        <h3>Radar</h3>
+        <h3>Grid definition</h3>
 
-        <h2>Model Architecture</h2>
+        <h2>Interpolation</h2>
+
+        <h2>Feature-Target construction</h2>
+
+        <h2>Temporal grouping</h2>
+
+        <h2>Train/Val/Test splits</h2>
+
+        <h2>Class imbalance & binary setup</h2>
+
+        <h2>Models</h2>
+        <h3>CNN</h3>
+        <h3>ConvLSTM 2D</h3>
+        <h3>ConvLSTM 3D</h3>
 
         <h2>Results</h2>
+        <h3>Main metrics</h3>
+        <h3>GIF (visual agreement)</h3>
 
+        <h2>Discussion</h2>
 
+        <h2>Next steps</h2>
 
+        <h2>Conclusion</h2>
 
+        <h2>Code</h2>
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-        <h4>Acknowledgements</h4>
+        <h2>Acknowledgements</h2>
         <p>Huge thanks to the Meteorological Institute.</p>
 
         <!-- Footer -->
