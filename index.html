@@ -231,6 +231,18 @@
             content: "" !important;
             counter-increment: none !important;
         }
+
+        .figure img.small-img {
+            max-width: 60%;
+        }
+
+        .figure img.medium-img {
+            max-width: 75%;
+        }
+
+        .figure img.large-img {
+            max-width: 90%;
+        }
     </style>
 </head>
 
@@ -269,6 +281,43 @@
 
         <!-- Introduction -->
         <h2>Introduction</h2>
+        <p>Lightning is one of the most dangerous and unpredictable weather hazards. Accurate short-term forecasts are
+            important for aviation, offshore industry, energy infrastructure, and public safetly. If you know that the
+            risk for lightning is high in the next few minutes of half hour, you can delay landings or divert planes,
+            stop outdoor activites, or protect equipment. These are all decisions that depend on fast and reliable
+            nowcasts rather than long-term forecasts. </p>
+        <p>Today, most lightning prediction systems depend on numerical weather models that estimate the atmospheric
+            conditions that enable lightning. While these approaches work well for day-ahead forecasting, they are not
+            really designed to answer the question: <em>What will happen right now, in the next 10-30 minutes?</em>
+            Short-term lightning forecasting is still a rather unsolved problem.</p>
+        <p>This project explores whether machine learning can fill this gap. instead of using weather model output, the
+            idea is to predict lightning directly from polarimetric radar observations. The radar sweeps the atmosphere
+            and generates a 3D snapshot every ten minutes. If a model can learn the spatial and temporal patterns that
+            lead to lightning, it could be used as a fast and data-driven warning system. </p>
+        <p>A useful analogy to this problem is the use of deep learning models to identify tumours in MRI scans. These
+            models don't require any knowledge on human anatomy since they find these patterns on their own. In the same
+            way, this project attempts to use tomographic images of the atmosphere to "diagnose" lightning, without
+            explicitly modelling the physical processes that lead to these weather events. </p>
+
+        <p>Therefore, the goal of this project is to <strong>test whether lightning prediction using deep learning
+                models is feasible, and to establish a proof-of-concept baseline.</strong></p>
+
+        <div class="figure">
+            <img src="images/MIT_brain_imaging.jpg" class="medium-img" alt="MRI segmentation example from MIT">
+            <div class="caption">
+                MRI image example used for machine learning in medical use.<br>
+                Image credit: Courtesy of the researchers, MIT News<br>
+                Source: <a href="https://news.mit.edu/2018/faster-analysis-of-medical-images-0618" target="_blank">
+                    https://news.mit.edu/2018/faster-analysis-of-medical-images-0618</a>
+            </div>
+        </div>
+        <div class="figure">
+            <img src="images/atmosphere_tomography.png" class="medium-img" alt="Radar tomography of the atmosphere">
+            <div class="caption">
+                Example of 3D radar-derived “slices” of the atmosphere used as ML input features.<br>
+                (Generated from Hurum radar data, this project.)
+            </div>
+        </div>
 
         <h2>Data</h2>
         <h3>Lightning</h3>
