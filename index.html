@@ -282,20 +282,20 @@
         <!-- Introduction -->
         <h2>Introduction</h2>
         <p>Lightning is one of the most dangerous and unpredictable weather hazards. Accurate short-term forecasts are
-            important for aviation, offshore industry, energy infrastructure, and public safetly. If you know that the
-            risk for lightning is high in the next few minutes of half hour, you can delay landings or divert planes,
-            stop outdoor activites, or protect equipment. These are all decisions that depend on fast and reliable
+            important for aviation, offshore industry, energy infrastructure, and public safety. If you know that the
+            risk for lightning is high in the next few minutes or half hour, you can delay landings or divert planes,
+            stop outdoor activities, or protect equipment. These are all decisions that depend on fast and reliable
             nowcasts rather than long-term forecasts. </p>
         <p>Today, most lightning prediction systems depend on numerical weather models that estimate the atmospheric
             conditions that enable lightning. While these approaches work well for day-ahead forecasting, they are not
             really designed to answer the question: <em>What will happen right now, in the next 10-30 minutes?</em>
             Short-term lightning forecasting is still a rather unsolved problem.</p>
-        <p>This project explores whether machine learning can fill this gap. instead of using weather model output, the
+        <p>This project explores whether machine learning can fill this gap. Instead of using weather model output, the
             idea is to predict lightning directly from polarimetric radar observations. The radar sweeps the atmosphere
             and generates a 3D snapshot every ten minutes. If a model can learn the spatial and temporal patterns that
             lead to lightning, it could be used as a fast and data-driven warning system. </p>
         <p>A useful analogy to this problem is the use of deep learning models to identify tumours in MRI scans. These
-            models don't require any knowledge on human anatomy since they find these patterns on their own. In the same
+            models don't require any knowledge of human anatomy since they find these patterns on their own. In the same
             way, this project attempts to use tomographic images of the atmosphere to "diagnose" lightning, without
             explicitly modelling the physical processes that lead to these weather events. </p>
 
@@ -320,11 +320,120 @@
         </div>
 
         <h2>Data</h2>
-        <h3>Lightning</h3>
-        <h3>Radar</h3>
-        <h3>Grid definition</h3>
+        <p>This project uses two meteorological datasets: <em>lightning observations</em> and <em>polarimetric radar
+                measurements</em>.
+            The lightning data represent the target variable (or label), while the radar
+            volume scans are the atmospheric features the models learn from. Both
+            datasets are processed and projected onto a common 3D grid so they can be used together in the
+            machine-learning pipeline.</p>
 
-        <h2>Interpolation</h2>
+        <h3>Common grid definition</h3>
+        <p>Before combining radar and lightning data, both must be transformed onto a common spatial grid. The test grid
+            is a
+            10x10 grid centered on the Hurum radar station, covers an area of 80x80 km, and has a cell size of 8 km.
+            Vertically it spans 0.2-9.7 km with 500 m spacing, thereby covering 20 altitude levels. All downstream
+            preprocessing such as interpolation, feature/target pair construction and ML tensors are defined on this
+            grid.</p>
+
+        <div class="figure">
+            <img src="images/grid_definition.png" class="small-img" alt="Common grid definition">
+            <div class="caption">
+                Definition of the common test grid centered on the Hurum radar station. It covers an area of 80 by 80
+                km with a cell size of 8 km.
+            </div>
+        </div>
+
+
+
+        <h3>Lightning</h3>
+        <p>The lightning observations were accessed through MET Norway's <a href="https://frost.met.no/">FROST API</a>,
+            which include cloud-to-ground (CG) and intra-cloud (IC) strikes. The former are classic lightning strikes
+            where the discharge happens from the cloud down to the ground. The latter are discharges between clouds or
+            within a single cloud, typically seen on the onset of thunderstorms. These lightning events are
+            triangulated using MET Norway's network of electromagnetic sensors, and each event includes the geographic
+            coordinates and its intensity. Each event is projected onto the grid and aggregated into counts per cell per
+            10-minute interval. The dataset includes all lightning days from May-August
+            2020-2025.
+        </p>
+
+        <div class="figure">
+            <img src="images/lightning_grid.png" class="small-img" alt="lightning grid">
+            <div class="caption">
+                Lightning observations aggregated into the 8x8 km grid cells. Blue dots represent intra-cloud strikes
+                (IC), red dots represent cloud-to-ground strikes (CG). For each 10-minute interval, the IC, CG, and
+                total counts are stored for every grid cell.
+            </div>
+        </div>
+
+
+        <h3>Radar</h3>
+        <p>The radar data come from MET Norway's polarimetric weather radar at Hurum, located south of Oslo. Every 10
+            minutes the radar performs a full volume scan consisting of 12 elevation angles, producing a
+            three-dimensional snapshot of the atmosphere in range-azimuth-elevation space.</p>
+
+        <p>Each sweep measures several polarimetric parameters, of which four are used in this project: reflectivity
+            (dBZ), differential reflectivity (ZDR), specific differential phase (KDP), and the correlation coefficient
+            (RhoHV). Reflectivity measures how strong the radar return is and correlates strongly with precipitation
+            intensity. ZDR gives information on the drop shape. Oblate raindrops reflect the vertical and horizontal
+            plane of the reflected signal differently, leading to higher ZDR values. KDP responds strongly to rain rate
+            and the presence of many liquid drops. RhoHV measures how similar the horizontal and the vertical radar
+            signals are, which can be used to identify areas there are mixed phases, such as hail or melting layers.
+        </p>
+
+        <div class="figure">
+            <img src="images/radar_cone_illustration.png" class="large-img" alt="illustration of radar cone">
+            <div class="caption">
+                A single radar elevation sweep forms a cone-shaped slice of the atmosphere. Hurum performs 12 such
+                sweeps per volume scan (one shown here). These
+                measurements need to be mapped onto the 3d Cartesian grid and aligned with the lightning observations
+                (green
+                symbols)
+            </div>
+        </div>
+
+
+
+        <h2>Radar interpolation</h2>
+        <p>The radar data are originally stored in range-azimuth-elevation space, which are spherical coordinates. These
+            measurements must
+            be mapped onto the previously defined common grid to align them with the lightning observations. The figure
+            below illustrates the problem: The V-shaped structures are the cross-sections of the 12 radar cones, the
+            black
+            dots represent the grid points, with a horizontal resolution of 8 km and a vertical resolution of 0.5 km.
+            These hollow cones now need to be converted into values on the grid, which is done through an anisotropic
+            interpolation method.
+        </p>
+
+        <div class="figure">
+            <img src="images/radar_cones_cross-section.png" class="medium-img" alt="cross-section of radar cone">
+            <div class="caption">
+                Cross-section of the 12 radar elevation cones (V-shapes) overlaid with the common 3D grid used for the
+                interplation.
+            </div>
+        </div>
+
+        <p>Since the vertical resolution is far finer than the horizontal resolution, an anisotropic k-nearest-neighbor
+            (kNN)
+            approach is used. To avoid mixing information from different altitude layers, a pill-shaped neighborhood is
+            constructed around each grid point by scaling the vertical coordinate to match the horizontal spacing. All
+            radar data points within this rescaled volume are aggregated, and both the mean and maximum reflectivity
+            values are computed. Afterwards, the volume is returned to its original proportions. The image below shows
+            the result of this interpolation method. </p>
+
+        <div class="figure">
+            <img src="images/altitudes_knn_anisotropic.png" class="medium-img" alt="interpolation results">
+            <div class="caption">
+                Interplated radar reflectivity at all 20 altitude levels, from 200 m to 9.7 km.
+            </div>
+        </div>
+
+        <p>At low altitudes, the radar beams intersect the atmosphere densely, so most grid cells have enough
+            measurements to provide reliable statistics. Higher up, the radar cones become hollow and only intersect the
+            grid in a few places. As a result, many high-altitude grid cells are empty as there are too few or no data
+            points available. </p>
+
+
+
 
         <h2>Feature-Target construction</h2>
 
@@ -355,7 +464,7 @@
         <p>Huge thanks to the Meteorological Institute.</p>
 
         <!-- Footer -->
-        <div class="footer">
+        <div class=" footer">
             <div class="contact">
                 <a href="mailto:harald.thommesen@outlook.com">Email</a>
                 <a href="https://www.linkedin.com/in/h-thommesen/">LinkedIn</a>
