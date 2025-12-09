@@ -408,7 +408,7 @@
             <img src="images/radar_cones_cross-section.png" class="medium-img" alt="cross-section of radar cone">
             <div class="caption">
                 Cross-section of the 12 radar elevation cones (V-shapes) overlaid with the common 3D grid used for the
-                interplation.
+                interpolation.
             </div>
         </div>
 
@@ -423,7 +423,7 @@
         <div class="figure">
             <img src="images/altitudes_knn_anisotropic.png" class="medium-img" alt="interpolation results">
             <div class="caption">
-                Interplated radar reflectivity at all 20 altitude levels, from 200 m to 9.7 km.
+                Interpolated radar reflectivity at all 20 altitude levels, from 200 m to 9.7 km.
             </div>
         </div>
 
@@ -433,6 +433,21 @@
             points available. </p>
 
 
+        <h2>Temporal strategy</h2>
+        The image below illustrates the temporal strategy behind the machine-learning setup. The green arrow marks the
+        reference time, or "now", which is the timestamp that links a radar-lightning pair. The idea is to use the most
+        recent radar measurements, those produced in the past 10 minutes, to predict whether lightning will occur at a
+        future time. The delay between the reference time and the predicted lightning map is called the <em>lead
+            time</em>, and it is a free parameter of the algorithm. A second adjustable parameter is the <em>time
+            window</em>, which defines the duration of the future interval in which lightning is aggregated. Taken
+        together, the lead time and time window specify exactly which future lightning the model is asked to forecast.
+
+        <div class="figure">
+            <img src="images/temporal_strategy.png" class="large-img" alt="temporal strategy">
+            <div class="caption">
+                Temporal relationship between radar input and future lightning target.
+            </div>
+        </div>
 
 
         <h2>Feature-Target construction</h2>
