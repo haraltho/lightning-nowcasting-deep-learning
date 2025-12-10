@@ -434,13 +434,17 @@
 
 
         <h2>Temporal strategy</h2>
-        The image below illustrates the temporal strategy behind the machine-learning setup. The green arrow marks the
-        reference time, or "now", which is the timestamp that links a radar-lightning pair. The idea is to use the most
-        recent radar measurements, those produced in the past 10 minutes, to predict whether lightning will occur at a
-        future time. The delay between the reference time and the predicted lightning map is called the <em>lead
-            time</em>, and it is a free parameter of the algorithm. A second adjustable parameter is the <em>time
-            window</em>, which defines the duration of the future interval in which lightning is aggregated. Taken
-        together, the lead time and time window specify exactly which future lightning the model is asked to forecast.
+        <p>The image below illustrates the temporal strategy behind the machine-learning setup. The green arrow marks
+            the
+            reference time, or "now", which is the timestamp that links a radar-lightning pair. The idea is to use the
+            most
+            recent radar measurements, those produced in the past 10 minutes, to predict whether lightning will occur at
+            a
+            future time. The delay between the reference time and the predicted lightning map is called the <em>lead
+                time</em>, and it is a free parameter of the algorithm. A second adjustable parameter is the <em>time
+                window</em>, which defines the duration of the future interval in which lightning is aggregated. Taken
+            together, the lead time and time window specify exactly which future lightning the model is asked to
+            forecast.</p>
 
         <div class="figure">
             <img src="images/temporal_strategy.png" class="large-img" alt="temporal strategy">
@@ -450,7 +454,29 @@
         </div>
 
 
-        <h2>Feature-Target construction</h2>
+        <h2>Feature-Target pairs</h2>
+        <p>A single machine-learning sample consists of one radar volume scan and one corresponding lightning map in the
+            future. For every 10-minute interval, the interpolated radar fields at the reference time (for example
+            08:00) serve as the feature input. Each feature contains all available radar parameters (dBZ, ZDR, KDP,
+            RhoHV) across the 20 altitude levels.</p>
+
+        <p>The target is the lightning occurrence in the future prediction window. In the example shown below, the radar
+            at 08:00 is paired with lightning aggregated over the interval 08:30-08:40. Ten minutes later, the radar at
+            08:10 is paired with lightning in the interval 08:40-08:50, and so on. Each radar-lightning pair therefore
+            represents the atmospheric condition at a given time and its lightning outcome in the immediate future. </p>
+
+        <p>Both the lead time and the prediction window are free parameters and can be adjusted depending on the
+            forecasting setup.</p>
+
+        <p>Using all days with active lightning from 2020 through 2025 yields approximately 5000 such samples. </p>
+
+        <div class="figure">
+            <img src="images/feature-target-pairs.png" class="large-img" alt="temporal strategy">
+            <div class="caption">
+                Example of two feature-target pairs: radar volumes at the reference time (left) and the lightning
+                occurrence in the future prediction window (right).
+            </div>
+        </div>
 
         <h2>Temporal grouping</h2>
 
