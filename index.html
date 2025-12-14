@@ -454,7 +454,7 @@
         </div>
 
 
-        <h2>Feature-Target pairs</h2>
+        <h2>Feature-Target pair construction.</h2>
         <p>A single machine-learning sample consists of one radar volume scan and one corresponding lightning map in the
             future. For every 10-minute interval, the interpolated radar fields at the reference time (for example
             08:00) serve as the feature input. Each feature contains all available radar parameters (dBZ, ZDR, KDP,
@@ -479,6 +479,14 @@
         </div>
 
         <h2>Temporal grouping</h2>
+        <p>Radar scans are performed every 10 minutes, and each of them contains a complete 3D view of the atmosphere.
+            However, thunderstorms evolve continuously, and a single snapshot does not capture
+            their development in time and space. To account for this, the previous 5 radar samples are appended to each
+            machine-learning sample described above. This group of six radar samples therefore stretches over one hour
+            of
+            storm history. The most recent scan in the sequence corresponds to the reference time, and the five
+            preceding ones provide the temporal context. This grouping ensures that the model does not only see one
+            moment in time, but also how the storm has grown, decayed, or moved during the past hour. </p>
 
         <h2>Train/Val/Test splits</h2>
 
