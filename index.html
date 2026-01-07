@@ -359,7 +359,8 @@
         <div class="figure">
             <img src="images/lightning_grid.png" class="small-img" alt="lightning grid">
             <div class="caption">
-                Lightning observations aggregated into the 8x8 km grid cells. Blue dots represent intra-cloud strikes
+                Lightning observations of one lightning day aggregated into the 8x8 km grid cells. Blue dots represent
+                intra-cloud strikes
                 (IC), red dots represent cloud-to-ground strikes (CG). For each 10-minute interval, the IC, CG, and
                 total counts are stored for every grid cell.
             </div>
@@ -489,16 +490,66 @@
             moment in time, but also how the storm has grown, decayed, or moved during the past hour. </p>
 
         <h2>Train/Val/Test splits</h2>
+        <p>Once all feature-target pairs are created, the dataset is split into training, validation, and test sets. The
+            data are split by data rather than by individual sample, since the grouping of the samples would create a
+            significant overlap between the splits and would therefore lead to a data leak from the training into the
+            test set. All lightning-active days are first shuffled, and then split in proportions of 70% for training,
+            15% for validation, and 15% for testing. The same split is consistently used across all model comparisons to
+            gauge how much of the performance difference is caused by the model rather than random variations in the
+            data. </p>
 
         <h2>Class imbalance & binary setup</h2>
+        <p>Lightning is a rare event, and the main interest in this study is whether lightning will occur rather than
+            the exact number of strikes. For this reason, the problem is formulated as a binary classification problem,
+            where each grid cell is labelled as either "lightning occurred" or "no lightning occurred". Both
+            cloud-to-ground and intra-cloud strikes are included, and any cell containing at least one strike within the
+            prediction window is marked as positive for lightning.</p>
+
+        <p>A second challenge is the strong class imbalance of the dataset. Despite selecting only lightning-active days
+            for this study, approximately 98% of grid cells contain no lightning, while only about 2% contain lightning.
+            Without correction, a model predicting "no lightning" everywhere would achieve 98% accuracy. While the
+            accuracy is high, such a prediction would be totally useless. To account for this imbalance, the model's
+            initial starting bias is set to the actual ratio between lightning and no-lightning events. This ensures
+            that the model starts training with realistic prior probabilities rather than assuming a 50-50 distribution
+        </p>
 
         <h2>Models</h2>
-        <h3>CNN</h3>
-        <h3>ConvLSTM 2D</h3>
-        <h3>ConvLSTM 3D</h3>
+        <p>The machine learning framework used in this study is <em>TensorFlow</em>, which is designed for pattern
+            recognition and image classification in two and 3 dimensions. For this project, three models are used, where
+            complexity is added step by step. </p>
 
+        <div class="figure">
+            <img src="images/model_illustration.png" class="large-img" alt="illustration of model architectures">
+            <div class="caption">
+                Illustration of model architectures: The CNN (left) uses a single timestep with altitudes as channels,
+                the ConcLSTM2D (middle) adds temporal context, and the ConvLSTM3D (right) adds vertical structure as
+                well.
+            </div>
+        </div>
+
+        <h3>CNN (2D)</h3>
+        <p>The baseline model is a two-dimensional convolutional neural network operating on a single radar snapshot. It
+            learns spatial patterns in the horizontal plane, such as regions of high reflectivity. All altitude levels
+            are treated as independent input channels, meaning that the model does not have any knowledge of how the
+            individual layers are connected in 3D space. This setup is simple and efficient, but it has no awareness of
+            storm evolution over time or the vertical axis. </p>
+
+        <h3>ConvLSTM 2D</h3>
+        <p>The second model extends the CNN by adding awareness in time through a convolutional long short-term memory
+            (ConvLSTM) layer. Instead of processing only a single snapshot, the model analyzes sequences of radar images
+            covering one hour of history. This allows it to learn storm motion and how it evolves with time, such as
+            growth and decay. However, the altitude levels are still treated as separate channels, so the model still
+            has no knowledge of how the vertical structure connects. </p>
+
+        <h3>ConvLSTM 3D</h3>
+        <p>The most complex configuration extends the previous ConvLSTM approach by using three-dimensional
+            convolutions. In this model, the vertical dimension is treated explicitly rather than as a set of
+            independent channels. As a result, the network can learn relationships across both time and altitude levels,
+            which allows it to learn vertical storm structure in addition to evolution in time. However, this added
+            functionality has the downside that it is computationally very heavy. </p>
+
+        <h2>Main metrics</h2>
         <h2>Results</h2>
-        <h3>Main metrics</h3>
         <h3>GIF (visual agreement)</h3>
 
         <h2>Discussion</h2>
