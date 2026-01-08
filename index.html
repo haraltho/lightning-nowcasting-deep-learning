@@ -549,6 +549,75 @@
             functionality has the downside that it is computationally very heavy. </p>
 
         <h2>Main metrics</h2>
+        <p>Model performance is evaluated using three metrics:</p>
+        <p><b>Critical Success Index (CSI)</b></p>
+        <p>Since lightning is a rare event, accuracy alone would be misleading because even predicting no lightning
+            everywhere would lead to a high accuracy. CSI is therefore used as the primary evaluation metric. It
+            balances out missed detections and false alarms and combines them into a single score. It is therefore
+            well-suited for predicting rare events. A high CSI indicates that lightning is detected reliably without an
+            excessive number of false alarms. </p>
+
+        <p>
+            <math display="block">
+                <mi>CSI</mi>
+                <mo>=</mo>
+                <mfrac>
+                    <mi>Hits</mi>
+                    <mrow>
+                        <mi>Hits</mi>
+                        <mo>+</mo>
+                        <mi>Misses</mi>
+                        <mo>+</mo>
+                        <mi>False&nbsp;Alarms</mi>
+                    </mrow>
+                </mfrac>
+            </math>
+        </p>
+
+        <p><b>Precision</b></p>
+        <p>Precision answers the question: "When the model predicts lightning, how often is it actually correct?". It
+            measures how reliable a lightning prediction is and is therefore important for avoiding unnecessary
+            warnings. A model with high precision delivers fewer false alarms, which means that when lightning is
+            predicted, it is more likely to occur. </p>
+
+        <p>
+            <math display="block">
+                <mi>Precision</mi>
+                <mo>=</mo>
+                <mfrac>
+                    <mi>Hits</mi>
+                    <mrow>
+                        <mi>Hits</mi>
+                        <mo>+</mo>
+                        <mi>False&nbsp;Alarms</mi>
+                    </mrow>
+                </mfrac>
+            </math>
+        </p>
+
+
+        <p><b>Recall</b></p>
+        <p>Recall answers the question "How many of the actual lightning events did the model detect?". A model with
+            high recall misses fewer lightning events, meaning that more dangerous events can be predicted. In turn, low
+            recall implies that many lightning events go undetected, which is critical to avoid. </p>
+
+        <p>
+            <math display="block">
+                <mi>Recall</mi>
+                <mo>=</mo>
+                <mfrac>
+                    <mi>Hits</mi>
+                    <mrow>
+                        <mi>Hits</mi>
+                        <mo>+</mo>
+                        <mi>Misses</mi>
+                    </mrow>
+                </mfrac>
+            </math>
+        </p>
+
+
+
         <h2>Results</h2>
         <h3>GIF (visual agreement)</h3>
 
