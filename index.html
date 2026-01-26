@@ -619,6 +619,29 @@
 
 
         <h2>Results</h2>
+        <p>With these metrics in place, the final model results can now be presented. The figure below summarizes the
+            performance of the three model architectures: the 2D CNN, the ConvLSTM2D, and the ConvLSTM3D. Since the
+            algorithm, and especially the data splits, rely heavily on random numbers, all scores are reported as mean
+            values with standard deviations across ten random initializations. The evaluation uses radar reflectivity as
+            the only input parameter and predicts total lightning activity over a 30-minute window with zero lead time,
+            which corresponds to a nowcasting setup. The dataset covers the lightning seasons from 2020 to 2025.</p>
+
+        <div class="figure">
+            <img src="images/model_results.png" class="large-img" alt="model results">
+            <div class="caption">
+                Comparison of CSI, precision, and recall for the three model architectures. The mean values across ten
+                random initializations are shown, with one standard deviation indicated by the error bars.
+            </div>
+        </div>
+
+        <p>Across all three models, the CSI values remain similar, indicating comparable overall performance. The
+            ConvLSTM3D achieves slightly higher CSI scores, which suggests that modelling vertical structure has some
+            additional benefit. The precision values range between approximately 35% and 40%, meaning that when
+            lightning is predicted in a cell, it occurs in roughly one third of the cases. The recall values are around
+            40%, indicating that a substantial fraction of lightning events is detected by all models. Overall, the
+            ConvLSTM2D has the most balanced performance and combines temporal information with model simplicity, while
+            achieving competitive results across all metrics. </p>
+
         <h3>GIF (visual agreement)</h3>
 
         <h2>Discussion</h2>
