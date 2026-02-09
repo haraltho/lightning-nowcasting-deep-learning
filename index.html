@@ -681,10 +681,29 @@
         </div>
 
         <h2>Discussion</h2>
+        <p>The results show that radar reflectivity alone already contains useful information for short-term lightning
+            prediction. All three model architectures achieve similar CSI values, which suggests that the overall
+            predictive skill is comparable across models. Adding temporal information through the ConvLSTM2D model
+            improves the balance between precision and recall, while explicitly modelling the vertical structure in the
+            ConvLSTM3D model leads to only a small additional improvement despite much higher computational cost. This
+            indicates that much of the relevant signal for nowcasting lightning is already present in the horizontal
+            structure and recent evolution of the radar field.</p>
+
+        <p>This behavior is physically plausible. Lightning activity is linked to deep convetion and strong updrafts,
+            which are reflected in high radar reflectivity values. In a nowcasting setup with zero lead time, the task
+            is not to predict storms far in advance, but rather to see whether existing storms are likely to produce
+            lightning in the immediate future. In this context, spatial patterns and short-term temporal evolution
+            appear to be more important than an accurate picture of vertical microphysics, which may explain why these
+            relatively simple models perform so well and similarly.</p>
+
+        <p>Several limitations of this study should be noted. This analysis is based on data from a single radar station
+            at a single geographic location. The results may therefore not generalize directly to other locations or
+            climates. In addition, the prediction task is formulated as a binary classification problem and does not
+            take into account different lightning intensities. Lastly, only a zero lead time setup is evaluated here.
+            Longer lead times are will be more challenging and will require additional input features and more complex
+            model architectures. These limitations should be considered when interpreting the results.</p>
 
         <h2>Next steps</h2>
-
-        <h2>Conclusion</h2>
 
         <h2>Code</h2>
 
