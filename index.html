@@ -689,7 +689,7 @@
             indicates that much of the relevant signal for nowcasting lightning is already present in the horizontal
             structure and recent evolution of the radar field.</p>
 
-        <p>This behavior is physically plausible. Lightning activity is linked to deep convetion and strong updrafts,
+        <p>This behavior is physically plausible. Lightning activity is linked to deep convection and strong updrafts,
             which are reflected in high radar reflectivity values. In a nowcasting setup with zero lead time, the task
             is not to predict storms far in advance, but rather to see whether existing storms are likely to produce
             lightning in the immediate future. In this context, spatial patterns and short-term temporal evolution
@@ -704,11 +704,29 @@
             model architectures. These limitations should be considered when interpreting the results.</p>
 
         <h2>Next steps</h2>
+        <p>While this study shows that radar-based lightning nowcasting with deep learning is possible, several aspects
+            should be explored in the future. First, additional years of radar and lightning data could be included to
+            improve robustness and reduce variability. </p>
+
+        <p>Second, the current setup uses a binary classification approach. A natural extension would be to predict
+            lightning counts instead of a simple boolean occurrence. Using the number of strikes per grid cell to train
+            the model could potentially improve the forecasting capabilities.</p>
+
+        <p>Third, the current setup uses only reflectivity. Future work should investigate whether the additional
+            polarimetric parameters (ZDR, KDP, RhoHV) could improve the forecast, or whether more complicated feature
+            engineering steps are required.</p>
+
+        <p>Finally, longer lead times should be evaluated. Moving the forecast horizon further into the future would be
+            beneficial for early-warning tools, but will likely require additional modelling efforts.</p>
 
         <h2>Code</h2>
+        <p>The full implementation of the data preprocessing pipeline, radar interpolation, feature-target construction,
+            and model training is available in the public GitHub repository linked at the top of this page. </p>
 
         <h2>Acknowledgements</h2>
-        <p>Huge thanks to the Meteorological Institute.</p>
+        <p>This project was carried out in collaboration with <a href="https://www.met.no/" target="_blank">MET
+                Norway</a>. Thanks to my colleagues at MET for access to
+            radar data and for helpful discussions and feedback during the project.</p>
 
         <!-- Footer -->
         <div class=" footer">
