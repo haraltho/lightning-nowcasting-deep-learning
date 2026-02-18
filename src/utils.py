@@ -3,12 +3,34 @@ import pandas as pd
 from datetime import datetime, timedelta
 
 def parse_storm_periods(filename):
+    """
+    Parse storm period definitions from CSV files.
+
+    The input CSV file is expected to contain the columns 'date',
+    'start_time', and 'end_time'. These columns are combined into
+    two new datetime columns:
+        - start_datetime
+        - end_datetime
+
+    Parameters
+    ----------
+    filename : str
+        Path to the CSV file containing the storm period definitions
+    
+    Returns
+    -------
+    pandas.DataFrame
+        DataFrame with 'start_datetime' and 'end_datetime' columns
+        representing each storm period.
+    """
+
     storm_periods = pd.read_csv(filename, comment="#")
+    # Convert to datetime
     storm_periods["start_datetime"] = pd.to_datetime(storm_periods["date"] + " " + storm_periods["start_time"])
     storm_periods["end_datetime"] = pd.to_datetime(storm_periods["date"] + " " + storm_periods["end_time"])
-    # Convert to datetime
     storm_periods = storm_periods.drop(columns=["start_time", "date", "end_time"])
     return storm_periods
+
 
 def create_time_segments(start_of_storm, end_of_storm, time_window):
     """
