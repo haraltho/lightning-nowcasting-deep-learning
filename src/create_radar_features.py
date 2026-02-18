@@ -18,6 +18,37 @@ daily_features = None
 time_features = None
 
 def create_radar_features(time_segments_file, grid, time_step, data_dir, output_dir, radar, parameters):
+    """
+    Generate radar-based feature tensors for the lightning nowcasting pipeline.
+
+    For each storm period, radar volume scans are loaded at a fixed temporal resolution,
+    converted to Cartesian coordinates, and mapped onto the common 3D grid using 
+    anisotropic k-nearest neighbor (kNN) aggregation. For each selected radar parameter,
+    summary statistics (mean, standard deviation, and maximum) are computed per grid volume
+    cell and stored as daily feature files.
+
+    Parameters
+    ----------
+    time_segments_file : str
+        Path to CSV file defining storm start and end times.
+    grid : dict 
+        Common 3D grid definition used for interpolation.
+    time_step : int
+        Temporal resolution in minutes between radar scans.
+    data_dir : str
+        Directory containing the raw radar files.
+    output_dir : str
+        Directory where the processed files are written.
+    radar : dict
+        Radar metadata (location, identifiers)
+    parameters : list of str
+        Radar parameters to extract (e.g., ["dBZ", "ZDR", "KDP", "RhoHV"])
+
+    Returns
+    -------
+    None
+        Feature tensors are written to disk as daily files in 'output_dir'. 
+    """
     
     # Global variables for ipython
     global time_segments, radar_sweeps, x, y, z, values, values_interpolated, time_features, daily_features
@@ -28,7 +59,7 @@ def create_radar_features(time_segments_file, grid, time_step, data_dir, output_
     # Loop over all storms
     for i, time in storm_periods.iterrows():
         start_reference_time = time["start_datetime"]
-        end_reference_time = time["end_datetime"]
+        end_reference_time   = time["end_datetime"]
 
         print(f"\nProcessing storm day: {start_reference_time.date()}  {i+1}/{len(storm_periods)}")
 
@@ -56,7 +87,6 @@ def create_radar_features(time_segments_file, grid, time_step, data_dir, output_
                 values = radar_utils.extract_parameter_values(radar_sweeps, dataset_key)
 
                 # Interpolate to grid
-                # values_interpolated = radar_utils.interpolate_to_grid(x, y, z, values, grid)
                 values_interpolated_mean, values_interpolated_std, values_interpolated_max = radar_utils.k_nearest_neighbors_anisotropic(x, y, z, values,
                                                                                                                                          grid,
                                                                                                                                          k=100)
@@ -68,7 +98,6 @@ def create_radar_features(time_segments_file, grid, time_step, data_dir, output_
             time_stamp = reference_time.strftime("%Hh%M")
             daily_features[time_stamp] = time_features
 
-            
         date_label = start_reference_time.strftime('%Y-%m-%d')
         radar_utils.save_radar_features(daily_features, output_dir, date_label, grid)
         
