@@ -32,7 +32,7 @@ def process_lightning(time_segments_file, grid, lead_time, time_step, time_windo
     -----------
     time_segments_file: str
         path to file that holds the storm periods with columns: start_datetime, end_datetime
-    grid_file: str
+    grid: str
         path to file that contains the spatial grid definition
     lead_time: int
         number of minutes to predict into the future
