@@ -1,3 +1,19 @@
+"""
+Build ML Dataset
+----------------
+
+This script orchestrates the construction of feature (radar) and target (lightning)
+pairs for the machine learning pipeline. It performs the following steps:
+
+1. Creates a common spatial grid centered on the selected radar.
+2. Aggregates lightning observations onto that grid to build target maps.
+3. Processes radar data and interpolates it onto the same grid to generate feature 
+   tensors.
+
+The resulting feature and target files are stored in the run directory "run_dir" 
+defined below.
+"""
+
 from global_variables import RADARS
 import utils
 import local_variables as loc_vars
@@ -11,12 +27,12 @@ run_dir = "../data/processed_data/run_9_leadtime0/"
 os.makedirs(run_dir, exist_ok=True)
 lightning_output_dir = run_dir + "lightning/"
 radar_output_dir     = run_dir + "radar/"
-# radar_data_dir       = loc_vars.RADAR_FILE_DIR
+radar_data_dir       = loc_vars.RADAR_FILE_DIR
 storms_filename = "../data/config/storm_periods.csv"
 shutil.copy(storms_filename, run_dir)
 radar = RADARS["hurum"]
 parameters = ["dBZ", "ZDR", "KDP", "RhoHV"]
-lead_time   = 0 # minutes; time to predict in the future
+lead_time   = 0  # minutes; time to predict in the future
 time_step   = 10 # minutes; length of time segments (defined by radar sweeps)
 time_window = 30 # minutes; length of time window for lightning aggregation
 
@@ -27,7 +43,7 @@ print(f"\nProcessing radar: {radar['label']}")
 grid = utils.create_radar_grid(radar["lat"], radar["lon"])
 np.savez(f"{run_dir}/grid.npz", **grid)
 
-# Step 2: Prosess lightning
+# Step 2: Process lightning data
 print("\nProcessing lightning targets...")
 from create_lightning_targets import process_lightning
 process_lightning(
@@ -38,7 +54,7 @@ process_lightning(
     time_window=time_window,
     output_dir=lightning_output_dir,
 )
-sys.exit("asdf")
+
 # Step 3: Process radar data
 print("\nProcessing radar features...")
 from create_radar_features import create_radar_features
