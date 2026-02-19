@@ -8,7 +8,28 @@ import random
 
 
 def get_file_splits(radar_dir, lightning_dir, train_ratio=0.7):
-    """Split radar and lightning data files into training, validation and test set."""
+    """
+    Split radar and lightning data files into training, validation and test set.
+    
+    Parameters
+    ----------
+    radar_dir : str
+        Directory where the processed radar data are stored.
+    lightning_dir : str
+        Directory where the processed lightning data are stored.
+    train_ratio : float
+        Proportion of data that is used for training. The rest
+        is used for testing and validating.
+
+    Returns
+    -------
+    train_radar, train_lightning : list of str
+        Lists of radar and corresponding lightning files used for training.
+    validation_radar, validation_lightning : list of str
+        Lists of radar and corresponding lightning files used for validation.
+    test_radar, test_lightning : list of str
+        Lists of radar and corresponding lightning files used for testing.
+    """
 
     radar_files = sorted([f for f in os.listdir(radar_dir) if f.endswith('.h5')])
     lightning_files = sorted([f for f in os.listdir(lightning_dir) if f.endswith('.h5')])
@@ -16,7 +37,6 @@ def get_file_splits(radar_dir, lightning_dir, train_ratio=0.7):
     n_files = len(radar_files)
     n_train = int(n_files * train_ratio)
     n_val = int((n_files - n_train) / 2)
-    n_test = n_files - n_train - n_val
     
     train_radar     = radar_files[:n_train]
     train_lightning = lightning_files[:n_train]
@@ -28,15 +48,42 @@ def get_file_splits(radar_dir, lightning_dir, train_ratio=0.7):
     return train_radar, train_lightning, validation_radar, validation_lightning, test_radar, test_lightning
 
 
-def get_file_splits_shuffled_by_day(radar_dir, lightning_dir, train_ratio=0.7):
+def get_file_splits_shuffled_by_day(radar_dir, lightning_dir, train_ratio=0.7, holdout_year=None):
+    """
+    Split the radar and lightning files by day with an optional holdout year.
+
+    Ensures that the radar and lightning files correspond by matching dates. Optionally
+    collects all files from a given year as a holdout set. The remaining days are split
+    into training, validation, and test sets. Validation samples are taken as a 
+    consecutive block, while the training and test samples are shuffled.
+
+    Parameters
+    ----------
+    radar_dir : str
+        Directory containing the processed radar feature files.
+    lightning_dir : str
+        Directory containing the processed lightning target files.
+    train_ratio : float, default=0.7
+        Proportion of non-holdout data used for training.
+    holdout_year : int or None
+        Year to reserve entirely as a holdout set (e.g. 2025). 
+        If None, all years are included in the split.
+    
+    Returns
+    -------
+    radar_train, lightning_train : list of str
+        Lists containing the training files.
+    radar_val, lightning_val : list of str
+        Lists containing the validation files.
+    radar_test, lightning_test : list of str
+        Lists containing the test files.
+    radar_holdout, lightning_holdout : list of str
+        Lists containing the holdout files. 
+        Empty if holdout year is None.
+    """
     
     radar_files = sorted([f for f in os.listdir(radar_dir) if f.endswith('.h5')])
     lightning_files = sorted([f for f in os.listdir(lightning_dir) if f.endswith('.h5')])
-
-    n_files = len(radar_files)
-    n_train = int(n_files * train_ratio)
-    n_val = int((n_files - n_train) / 2)
-    n_test = n_files - n_train - n_val
 
     # Make sure that radar and lightning files correspond. Extract date from lightning and radar files, compute intersection
     def extract_date(filename):
@@ -49,6 +96,20 @@ def get_file_splits_shuffled_by_day(radar_dir, lightning_dir, train_ratio=0.7):
 
     radar_files =     [radar_dates[date] for date in sorted(common_dates)]
     lightning_files = [lightning_dates[date] for date in sorted(common_dates)]
+
+    # Pop holdout year files to separate list
+    if holdout_year is not None:
+        radar_holdout     = [f for f in radar_files     if extract_date(f).startswith(str(holdout_year))]
+        lightning_holdout = [f for f in lightning_files if extract_date(f).startswith(str(holdout_year))]
+
+        radar_files     = [f for f in radar_files     if not extract_date(f).startswith(str(holdout_year))]
+        lightning_files = [f for f in lightning_files if not extract_date(f).startswith(str(holdout_year))]
+
+    n_files = len(radar_files)
+    n_train = int(n_files * train_ratio)
+    n_val = int((n_files - n_train) / 2)
+    n_test = n_files - n_train - n_val
+
 
     # Extract consecutive validation samples from a random position
     val_start = np.random.randint(0, n_files - n_val)
@@ -68,21 +129,43 @@ def get_file_splits_shuffled_by_day(radar_dir, lightning_dir, train_ratio=0.7):
     radar_test = radar_files[n_train:]
     lightning_test = lightning_files[n_train:]
 
-    return radar_train, lightning_train, radar_val, lightning_val, radar_test, lightning_test
+    return radar_train, lightning_train, radar_val, lightning_val, radar_test, lightning_test, radar_holdout, lightning_holdout
 
 
 def load_data_to_tensors(radar_files, lightning_files, radar_dir, lightning_dir, n_altitudes, parameters, leadtime, lightning_type):
     """
-    Load radar and lightning data into tensors for ML training.
+    Load radar feature and lightning target files into NumPy tensors.
+
+    For each pair of radar and lightning HDF5 files, all timestamps are
+    iterated over and stacked into feature and target arrays suitable for 
+    2D CNN training (single-timestep samples).
+
+    Parameters
+    ----------
+    radar_files : list of str
+        Filenames of processed radar feature files.
+    lightning_files : list of str
+        Filenames of processed lightning target files.
+    radar_dir : str
+        Directory containing the radar feature files.
+    lightning_dir : str
+        Directory containing the lightning target files.
+    n_altitudes : int
+        Number of altitude layers to include.
+    parameters : list of str
+        Radar parameters to load (e.g. ['dBZ', 'ZDR])
+    leadtime : int
+        Lightning prediction lead time in minutes.
+    lightning_type : str
+        The type of lightning target to load ('total', 'cloud_to_ground',
+        or 'intracloud')
     
     Returns
     -------
     X : numpy.ndarray
-        Radar features with shape [n_samples, n_lat, n_lon, n_altitudes, n_parameters]
-        Grid indexing: [lat_index, lon_index] = [North-South, East-West]
+        Radar tensor with shape [n_samples, n_lat, n_lon, n_altitudes, n_parameters]
     y : numpy.ndarray  
-        Lightning targets with shape [n_samples, n_lat, n_lon]
-        Grid indexing: [lat_index, lon_index] = [North-South, East-West]
+        Lightning tensors with shape [n_samples, n_lat, n_lon]
     """
 
     X = []
@@ -117,22 +200,43 @@ def load_data_to_tensors(radar_files, lightning_files, radar_dir, lightning_dir,
 
 def load_data_to_tensors_temporal(radar_files, lightning_files, radar_dir, lightning_dir, n_altitudes, parameters, leadtime, lightning_type, n_timesteps):
     """
-    Load radar and lightning data into tensors for convLSTM training. 
+    Load radar feature and lightning target files into temporal tensors.
+
+    Creates samples consisting of consecutive radar timesteps for use in
+    ConvLSTM-based models. For each valid sequence of length 'n_timesteps',
+    the radar data are stacked into a 5D tensor and paired with the corresponding
+    lightning target at the final timestamp of the sequence.
+
+    Parameters
+    ----------
+    radar_files : list of str
+        Filenames of the processed radar feature files.
+    lightning_files : list of str
+        Filenames of the processed lightning target files.
+    radar_dir : str
+        Directory containing the radar feature files.
+    lightning_dir : str
+        Directory containing the lightning target files.
+    n_altitudes : int
+        Number of altitude layers to include.
+    parameters : list of str
+        Radar parameters to load (e.g., ['dBZ', 'ZDR']).
+    leadtime : int
+        Lightning prediction lead time in minutes.
+    lightning_type : str
+        Type of lightning target to load ('total', 'cloud_to_ground',
+        or 'intracloud').
+    n_timesteps : int
+        Number of consecutive timesteps per sample.
     
     Returns
     -------
     X : numpy.ndarray
-        Radar features with shape [n_samples, n_timesteps, n_lat, n_lon, n_altitudes, n_parameters]
-            n_samples: number of target/feature pairs
-            n_timesteps: number of timesteps per sample
-            n_lat / n_lon: number of latitude/longitude steps
-            n_altitudes: number of altitude layers
-            n_parameters: number of parameters [dBZ, ...]
-        Grid indexing: [lat_index, lon_index] = [North-South, East-West]
+        Radar tensors with shape [n_samples, n_timesteps, n_lat, n_lon, n_altitudes, n_parameters]
     y : numpy.ndarray  
-        Lightning targets with shape [n_samples, n_lat, n_lon]
-        Grid indexing: [lat_index, lon_index] = [North-South, East-West]
+        Lightning tensors with shape [n_samples, n_lat, n_lon]
     """
+
     X = []
     y = []
 
@@ -152,6 +256,8 @@ def load_data_to_tensors_temporal(radar_files, lightning_files, radar_dir, light
 
                     temporal_sequence = []
                     for timestamp in timestamps_slice:
+
+                        # Radar data
                         radar_params = []
                         for param in parameters:
                             param_data = radar_h5[timestamp][param][:, :, :n_altitudes]
@@ -327,8 +433,26 @@ def load_shuffled_data_to_tensors(samples, radar_dir, lightning_dir, n_altitudes
 
 def create_lightning_cnn(input_shape, initial_bias=None):
     """
-    input_shape = (H, W, Z, C) # one timestep: height, width, altitudes, parameters
+    Build a 2D CNN model for lightning prediction with a single timestep.
+
+    The input consists of one radar snapshot with shape (H, W, Z, C), where
+    H and W spatial dimensions, Z is the number of altitude layers, and C is 
+    the number of radar parameters. The altitude and parameter dimensions are 
+    flattened into channels before applying 2D convolutions. 
+
+    Parameters
+    ----------
+    input_shape : tuple
+        Shape of a single radar sample (H, W, Z, C).
+    initial_bias : float or None
+        Optional bias initializer to account for class imbalance.
+
+    Returns
+    -------
+    tf.keras.Model
+        Compiled 2D CNN model with sigmoid output per grid cell.
     """
+
     H, W, Z, C = input_shape
     n_channels = Z * C
 
@@ -350,6 +474,28 @@ def create_lightning_cnn(input_shape, initial_bias=None):
 
 
 def create_lightning_convLSTM2D(input_shape, initial_bias):
+    """
+    Build a ConvLSTM2D model for temporal lightning prediction.
+
+    The input consists of a sequence of radar snapshots with shape 
+    (T, H, W, Z, C), where T is the number of timesteps, H and W 
+    are spatial dimensions, Z is the number of altitude layers, and 
+    C is the number of radar parameters. The altitude and parameter
+    dimensions are flattened into channels before applying ConvLSTM2D
+    operations.
+    
+    Parameters
+    ----------
+    input_shape : tuple
+        Shape of a temporal radar sample (T, H, W, Z, C).
+    initial_bias : float or None
+        Optional bias initializer to account for class imbalance.
+
+    Returns
+    -------
+    tf.keras.Model
+        ConvLSTM2D model with sigmoid output per grid cell.
+    """
 
     if initial_bias is not None:
         bias_initializer = tf.keras.initializers.Constant(initial_bias)
@@ -375,6 +521,28 @@ def create_lightning_convLSTM2D(input_shape, initial_bias):
 
 
 def create_lightning_convLSTM3D(input_shape, initial_bias):
+    """
+    Build a ConvLSTM3D model for temporal and spatial lightning prediction.
+
+    The input consists of a sequence of radar snapshots with shape 
+    (T, H, W, Z, C), where T is the number of timesteps, H and W 
+    are spatial dimensions, Z is the number of altitude layers, and 
+    C is the number of radar parameters. Convolutions are performed
+    jointly in time and 3D space before reducing the altitude dimension
+    to produce a 2D lightning map.
+    
+    Parameters
+    ----------
+    input_shape : tuple
+        Shape of a temporal radar sample (T, H, W, Z, C).
+    initial_bias : float or None
+        Optional bias initializer to account for class imbalance.
+
+    Returns
+    -------
+    tf.keras.Model
+        ConvLSTM3D model with sigmoid output per grid cell.
+    """
 
     if initial_bias is not None:
         bias_initializer = tf.keras.initializers.Constant(initial_bias)
@@ -393,13 +561,31 @@ def create_lightning_convLSTM3D(input_shape, initial_bias):
         tf.keras.layers.Reshape((input_shape[2], input_shape[3]))  # Final (lat, lon)
     ])
 
-
-
     return model
 
 
 def calculate_csi(y_true, y_pred, threshold=0.5):
-    """Calculate Critical Success Index"""
+    """
+    Calculate the Critical Success Index (CSI) for binary predictions.
+
+    Applies a threshold to continuous predictions, converts both true
+    and predicted values to binary fields, and computes
+    CSI = hits / (hits + misses + false alarms).
+
+    Parameters
+    ----------
+    y_true : numpy.ndarray
+        True lightning map
+    y_pred : numpy.ndarray
+        Predicted lightning probabilities.
+    threshold : float, default=0.5
+        Threshold used to convert predictions to binary values.
+
+    Returns
+    -------
+    csi : float
+        Critical Success Index value
+    """
 
     y_true_binary = (y_true > threshold).astype(int).flatten()
     y_pred_binary = (y_pred > threshold).astype(int).flatten()
@@ -432,6 +618,24 @@ def evaluate_threshold(y_true, y_pred, n_thresholds=20):
 
 
 def print_detailed_results(y_true, y_pred):
+    """
+    Print confusion matrix counts and derived metrics.
+
+    Computes hits, misses, false alarms, and correct negatives from
+    binary predictions, then prints CSI, precision, recall and
+    accuracy.
+    
+    Parameters
+    ----------
+    y_true : numpy.ndarray
+        True lightning map (binary).
+    y_pred : numpy.ndarray
+        Predicted lightning map (binary).
+
+    Returns
+    -------
+    csi, precision, recall, accuracy : float
+    """
 
     y_true_flat = y_true.flatten()
     y_pred_flat = y_pred.flatten()
@@ -458,6 +662,31 @@ def print_detailed_results(y_true, y_pred):
 
 
 def visualize_results(X_test, y_test, y_pred, dir):
+    """
+    Save side-by-side visual comparison of radar, true lightning,
+    and predicted lightning fields. 
+
+    For each sample, generate a three-panel figure showing a radar
+    snapshot, the true lightning map, and the predicted lightning 
+    map. Images are written to an output directory.
+
+    Parameters
+    ----------
+    X_test : numpy.ndarray
+        Radar test tensor.
+    y_test : numpy.ndarray
+        True lightning tensor.
+    y_pred : numpy.ndarray
+        Predicted lightning tensor.
+    dir : str
+        Base directory where results will be stored. 
+
+    Returns
+    -------
+    None
+        Figures are saved ot disk.
+
+    """
 
     output_dir = dir + "results/"
     os.makedirs(output_dir, exist_ok=True)
@@ -483,6 +712,28 @@ def visualize_results(X_test, y_test, y_pred, dir):
 
 
 def compute_normalization_parameters(X, n_param):
+    """
+    Compute normalization statistics per parameter.
+
+    Calculates the mean and standard deviation for each radar
+    parameter across all samples (using the first timestep),
+    ignoring NaN values.
+
+    Parameters
+    ----------
+    X : numpy.ndarray
+        Radar tensor with shape
+        (n_samples, n_timesteps, n_lat, n_lon, n_alt, n_param).
+    n_param : int
+        Number of radar parameters.
+
+    Returns
+    -------
+    means : numpy.ndarray
+        Mean value per radar parameter.
+    stds : numpy.ndarray
+        Standard deviation per radar parameter.
+    """
 
     means = np.zeros(n_param)
     stds  = np.zeros(n_param)
@@ -496,6 +747,32 @@ def compute_normalization_parameters(X, n_param):
 
 
 def normalize_and_preprocess(X, means, stdevs, n_param):
+    """
+    Normalize the radar tensors and replace NaNz with zeros.
+
+    Applies standardization per parameter using precomputed means
+    and standard deviations. NaN values are replaced with zeros and 
+    a boolean mask of valid entries is returned.
+    
+    Parameters
+    ----------
+    X : numpy.ndarray
+        Radar tensor with shape
+        (n_samples, n_timesteps, n_lat, n_lon, n_alt, n_param).
+    means : numpy.ndarray
+        Mean values per radar parameter.
+    stdevs : numpy.ndarray
+        Standard deviations per radar parameter.
+    n_param : int
+        Number of radar parameters.
+
+    Returns
+    -------
+    X_norm : numpy.ndarray
+        Normalized radar tensor.
+    mask : numpy.ndarray
+        Boolean mask indicating non-NaN entries.
+    """
 
     # shape(X): (n_samples, n_timesteps, n_lat, n_lon, n_alt, n_param)
 
@@ -516,6 +793,24 @@ def normalize_and_preprocess(X, means, stdevs, n_param):
 
 
 def visualize_timeline(y_test, y_pred, run_dir):
+    """
+    Plot total lightning counts inside the grid over time
+    for true and predicted data.
+
+    Parameters
+    ----------
+    y_test : numpy.ndarray
+        True lightning tensor
+    y_pred : numpy.ndarray
+        Predicted lightning tensor.
+    run_dir : str
+        Directory where the results will be stored.
+
+    Returns
+    -------
+    None
+        Figure is saved to disk.
+    """
 
     output_dir = run_dir + "results/"
     os.makedirs(output_dir, exist_ok=True)
@@ -530,24 +825,3 @@ def visualize_timeline(y_test, y_pred, run_dir):
     axes.set_ylabel("number of lightnings in grid")
     axes.legend()
     fig.savefig(f"{output_dir}time_correlation.png", dpi=150, bbox_inches="tight")
-
-
-def focal_loss(gamma=2., alpha=0.25):
-    def focal_loss_fixed(y_true, y_pred):
-        # Epsilon for numerical stability so you never get log(0) or log(1)
-        epsilon = tf.keras.backend.epsilon()
-        y_pred = tf.clip_by_value(y_pred, epsilon, 1. - epsilon) # value below epsilon becomes epsilon, above 1-epsilon becomes 1-epsilon
-
-        # FL(p_t) = -alpha_t * (1 - p_t)^gamma * log(p_t)
-
-        # Probability for the true class (per pixel)
-        p_t = tf.where(tf.equal(y_true, 1), y_pred, 1 - y_pred)
-
-        # Class weight (alpha for positives, 1-alpha for negatives)
-        alpha_t = tf.where(tf.equal(y_true, 1), alpha, 1-alpha)
-
-        focal_weight = alpha_t * tf.pow(1. - p_t, gamma)
-        loss = -focal_weight * tf.math.log(p_t)
-
-        return tf.reduce_mean(loss)
-    return focal_loss_fixed
