@@ -825,3 +825,39 @@ def visualize_timeline(y_test, y_pred, run_dir):
     axes.set_ylabel("number of lightnings in grid")
     axes.legend()
     fig.savefig(f"{output_dir}time_correlation.png", dpi=150, bbox_inches="tight")
+
+
+def evaluate_holdout_year(model, radar_holdout, lightning_holdout,
+                          radar_dir, lightning_dir, n_altitudes, 
+                          parameters, leadtime, lightning_type,
+                          n_timesteps, means, stdevs, best_threshold,
+                          model_type, run_dir):
+    """
+    Evaluate holdout year and generate visualizations.
+    """
+
+    if len(radar_holdout) == 0:
+        return
+        
+    print("\n-- EVALUATION OF HOLDOUT YEAR (2025) --")
+
+    X_25, y_25 = load_data_to_tensors_temporal(
+        radar_holdout, lightning_holdout, radar_dir, lightning_dir,
+        n_altitudes, parameters, leadtime, lightning_type, n_timesteps)
+
+    X_25_norm, _ = normalize_and_preprocess(X_25, means, stdevs, len(parameters))
+
+    if model_type == "cnn2d":
+        X_25_norm = X_25_norm[:, -1, ...]  
+    elif model_type == "convlstm3d":
+        X_25_norm = np.transpose(X_25_norm, (0, 1, 4, 2, 3, 5))
+
+    y_25_pred = model.predict(X_25_norm, verbose=0)
+    y_25_bin  = (y_25_pred > best_threshold).astype(int)
+
+    y_25_binary = (y_25 > 0).astype(float)
+    print_detailed_results(y_25_binary, y_25_bin)
+
+    visualize_results(X_25, y_25_binary, y_25_bin, run_dir)
+    visualize_timeline(y_25_binary, y_25_bin, run_dir)
+    print(f"Saved holdout predictions to {os.path.join(run_dir, 'predictions_holdout.npz')}")
