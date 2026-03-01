@@ -688,27 +688,63 @@ def visualize_results(X_test, y_test, y_pred, dir):
 
     """
 
-    output_dir = dir + "results/"
+    output_dir = os.path.join(dir, "results")
     os.makedirs(output_dir, exist_ok=True)
 
     n_samples = X_test.shape[0]
 
     for i in range(n_samples):
-        fig, axes = plt.subplots(1, 3, figsize=(15, 5))
+        fig, axes = plt.subplots(1, 3, figsize=(12, 4), constrained_layout=True)
 
-        im1 = axes[0].imshow(X_test[i,0,:,:,0,0], cmap="seismic", vmin=-60, vmax=60)
-        axes[0].set_title('Radar dBZ')
-        plt.colorbar(im1, ax=axes[0], shrink=0.8)
+        radar_img = X_test[i, 0, :, :, 0, 0]
+        im1 = axes[0].imshow(
+            radar_img,
+            cmap="RdBu_r",
+            vmin=-60,
+            vmax=60,
+            interpolation="nearest",
+        )
+        axes[0].set_title("Radar (dBZ)", fontsize=11)
+        cbar = fig.colorbar(im1, ax=axes[0], fraction=0.046, pad=0.04)
+        cbar.set_label("dBZ")
 
-        im2 = axes[1].imshow(y_test[i,:,:], cmap="Reds", vmin=0, vmax=1)
-        axes[1].set_title('True Lightning')
+        # true lightning panel
+        truth = y_test[i, :, :]
+        axes[1].imshow(
+            truth,
+            cmap="Oranges",
+            vmin=0,
+            vmax=1,
+            interpolation="nearest",
+            alpha=0.95,
+        )
+        axes[1].set_title("True lightning", fontsize=11)
 
-        im3 = axes[2].imshow(y_pred[i,:,:], cmap="Reds", vmin=0, vmax=1)
-        axes[2].set_title('Predicted Lightning')
+        # predicted lightning panel
+        pred = y_pred[i, :, :]
+        axes[2].imshow(
+            pred,
+            cmap="Oranges",
+            vmin=0,
+            vmax=1,
+            interpolation="nearest",
+            alpha=0.95,
+        )
 
-        plt.tight_layout()
-        plt.savefig(f"{output_dir}prediction_{str(i).zfill(4)}.png", dpi=150, bbox_inches='tight')
-        plt.close()
+        axes[2].set_title("Predicted lightning", fontsize=11)
+
+        # remove ticks
+        for ax in axes:
+            ax.set_xticks([])
+            ax.set_yticks([])
+
+
+        fig.savefig(
+            os.path.join(output_dir, f"prediction_{i:04d}.png"),
+            dpi=200,
+            bbox_inches="tight",
+        )
+        plt.close(fig)
 
 
 def compute_normalization_parameters(X, n_param):

@@ -509,7 +509,7 @@
 
         <h2>Train/Val/Test splits</h2>
         <p>Once all feature-target pairs are created, the dataset is split into training, validation, and test sets. The
-            data are split by data rather than by individual sample, since the grouping of the samples would create a
+            data are split by day rather than by individual sample, since the grouping of the samples would create a
             significant overlap between the splits and would therefore lead to a data leak from the training into the
             test set. All lightning-active days are first shuffled, and then split in proportions of 70% for training,
             15% for validation, and 15% for testing. The same split is consistently used across all model comparisons to
