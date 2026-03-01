@@ -7,3 +7,4 @@ __pycache__/
 # Jupyter Notebook checkpoints
 .ipynb_checkpoints
 compute_grid.py
+notebooks/
